@@ -1,7 +1,8 @@
 # Realistic Water
 A Minecraft mod that adds a lot of cool, realistic stuff from Minecraft Blender animations.
 
-(image of me standing on the house but the original screenshot)
+<img width="1280" height="720" alt="New Project - 2026-10-23T184400 247" src="https://github.com/user-attachments/assets/ab90c5d9-7ce1-40f0-b7d1-f16f095327a3" />
+
 
 #
 
@@ -20,14 +21,18 @@ How to use:
 
 IMPORTANT: Mods like Sodium, Iris or any other mod that hooks into the render, might not be 100% stable with this mod. This doesn't mean that they instant crash your game, just might some things will be weird.
 
+If you wanna try the built in shaders out, DON'T use sodium
+
 #
 
 Water pumps:
 
-(image of water pumps work and other water stuff like boats)
+<img width="1920" height="1080" alt="Still 2026-10-24 125037_1 78 1" src="https://github.com/user-attachments/assets/0b443877-8610-4ed4-9aa7-7e3a6ae1f6ad" />
+
 
 Everything else:
 
-(screenshot of everything else in the mod)
+<img width="1280" height="720" alt="New Project - 2026-10-24T125259 436" src="https://github.com/user-attachments/assets/5559a179-8878-4f9e-a3c3-4126bc5fccd6" />
+
 
 Credits: https://github.com/claude and https://github.com/eva-akselrad
