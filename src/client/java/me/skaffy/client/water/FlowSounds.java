@@ -25,10 +25,12 @@ final class FlowSounds {
 		boolean water = material == Material.WATER;
 		boolean lava = material == Material.LAVA;
 		boolean slime = material == Material.SLIME;
-		if (water ? !WaterSettings.flowSounds : lava ? !WaterSettings.lavaFlowSounds : slime ? !WaterSettings.slimeSounds : !WaterSettings.sandSounds) {
+		boolean leaves = material == Material.LEAVES;
+		if (water ? !WaterSettings.flowSounds : lava ? !WaterSettings.lavaFlowSounds : slime ? !WaterSettings.slimeSounds
+			: leaves ? !WaterSettings.leafSounds : !WaterSettings.sandSounds) {
 			return;
 		}
-		float moving = water ? 0.4F : lava ? 0.35F : slime ? 0.25F : 0.3F;
+		float moving = water ? 0.4F : lava ? 0.35F : slime ? 0.25F : leaves ? 0.6F : 0.3F;
 		float fast = water ? 4.0F : lava ? 2.0F : slime ? 1.5F : 2.5F;
 		List<int[]> candidates = new ArrayList<>();
 		List<Float> speeds = new ArrayList<>();
@@ -61,6 +63,7 @@ final class FlowSounds {
 			return;
 		}
 		float volumeScale = WaterSettings.flowSoundVolume;
+		SoundType pile = leaves ? SoundType.AZALEA_LEAVES : SoundType.SAND;
 		float rate = water ? 0.012F : lava ? 0.011F : 0.01F;
 		float cap = water ? 3.0F : lava ? 2.5F : 2.0F;
 		int count = this.roll(Math.min(weight * rate, cap));
@@ -76,7 +79,7 @@ final class FlowSounds {
 			} else if (slime) {
 				this.schedule(b, SoundEvents.SLIME_SQUISH_SMALL, (0.15F + 0.25F * loud) * volumeScale, 0.6F + this.random.nextFloat() * 0.3F);
 			} else {
-				SoundEvent sound = this.random.nextBoolean() ? SoundType.SAND.getStepSound() : SoundType.SAND.getHitSound();
+				SoundEvent sound = this.random.nextBoolean() ? pile.getStepSound() : pile.getHitSound();
 				this.schedule(b, sound, (0.12F + 0.25F * loud) * volumeScale, 0.7F + this.random.nextFloat() * 0.5F);
 			}
 		}
@@ -90,7 +93,7 @@ final class FlowSounds {
 			} else if (slime) {
 				this.schedule(b, SoundEvents.SLIME_BLOCK_FALL, 0.3F * volumeScale, 0.7F + this.random.nextFloat() * 0.3F);
 			} else {
-				this.schedule(b, SoundType.SAND.getFallSound(), 0.35F * volumeScale, 0.8F + this.random.nextFloat() * 0.3F);
+				this.schedule(b, pile.getFallSound(), 0.35F * volumeScale, 0.8F + this.random.nextFloat() * 0.3F);
 			}
 		}
 	}

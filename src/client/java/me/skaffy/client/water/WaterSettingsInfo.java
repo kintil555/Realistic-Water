@@ -311,6 +311,12 @@ public final class WaterSettingsInfo {
 			"Bubbling and popping sounds from moving lava.");
 		toggle("lavaIgniteFlammables", "Lava sets fires", Cost.LOW, "A random tick check on each lava block, like vanilla lava.",
 			"Lets realistic lava set nearby flammable blocks on fire, like vanilla lava.");
+		toggle("lavaWaterMixing", "Water + lava = stone", Cost.LOW, "Checks where lava and water touch a few times per second.",
+			"Lava that touches water turns into cobblestone, and a lava spring into obsidian, like vanilla.");
+		num("lavaMixLavaMin", "Mix: lava needed", Cost.NONE, "Doesn't change the cost.", 0.01, 1, 0.01,
+			"How full of lava a block must be before touching water turns it to cobblestone. Lower reacts to thin lava.");
+		num("lavaMixWaterMin", "Mix: water needed", Cost.NONE, "Doesn't change the cost.", 0.01, 1, 0.01,
+			"How full of water a block must be to cool the lava next to it. Lower lets a few drops make stone.");
 
 		category("Slime");
 		integer("slimeResolution", "Resolution", Cost.EXTREME, "Same as water: doubling it is roughly 8x the cost.", 1, 16,
@@ -399,6 +405,60 @@ public final class WaterSettingsInfo {
 			"Overall brightness of the sand.");
 		toggle("sandSounds", "Sand sounds", Cost.LOW, "Plays a few sounds per second near moving sand.",
 			"Sliding and impact sounds from moving sand.");
+
+		category("Leaves");
+		integer("leafResolution", "Resolution", Cost.MEDIUM, "Cells per block for stacking; more cells means a finer pile shape but a bigger grid.", 2, 16,
+			"How finely leaf piles are stacked: each block is split into this many cells per side, and each cell holds a few leaves. Changing it rebuilds every pile.");
+		integer("leavesPerBlock", "Leaves per block", Cost.MEDIUM, "Cost grows with the number of leaves: 400 is about twice the work of 200.", 8, 4000,
+			"How many separate leaves one Realistic Leaves block is made of. Only affects blocks placed after the change.");
+		integer("leafCellCapacity", "Leaves per cell", Cost.NONE, "Doesn't change the cost.", 1, 16,
+			"How many leaves fit in one stacking cell before the rest are pushed aside. Higher makes thinner, denser piles.");
+		num("leafSize", "Leaf size", Cost.LOW, "Bigger leaves cover more pixels.", 0.05, 1, 0.01,
+			"Width of one leaf in blocks. 0.3125 matches Minecraft's pixel size for the 5-pixel leaf texture.");
+		num("leafFallSpeed", "Fall speed", Cost.NONE, LOOK, 0.1, 10, 0.05,
+			"Top speed a leaf falls through air, in blocks per second. Lower floats more.");
+		num("leafSinkSpeed", "Sink speed in water", Cost.NONE, LOOK, 0.02, 5, 0.01,
+			"Top speed a leaf sinks through water (realistic or vanilla), in blocks per second.");
+		num("leafAirDrag", "Air glide", Cost.NONE, LOOK, 0.1, 20, 0.1,
+			"How quickly air slows a leaf's sideways motion, per second. Lower lets kicked or blown leaves fly further.");
+		num("leafFlutter", "Flutter", Cost.NONE, LOOK, 0, 3, 0.05,
+			"How far falling leaves swing side to side.");
+		num("leafTumbleRate", "Tumble rate", Cost.NONE, LOOK, 0, 20, 0.1,
+			"How fast falling leaves rock and tumble.");
+		num("leafGroundFriction", "Ground friction", Cost.NONE, LOOK, 0, 50, 0.5,
+			"How quickly leaves stop sliding once they lie on something.");
+		integer("leafRepose", "Pile steepness", Cost.NONE, "Doesn't change the cost.", 1, 8,
+			"How many cells a leaf may stick out over an edge before it slides off. 1 gives low spread-out mounds, higher gives steeper heaps.");
+		num("leafShuffleSpeed", "Settle speed", Cost.NONE, LOOK, 0.1, 10, 0.1,
+			"How fast leaves are pushed out of overfull cells and slide down pile slopes, in blocks per second.");
+		num("leafRestSpeed", "Rest speed", Cost.NONE, LOOK, 0, 1, 0.01,
+			"Below this speed a supported leaf counts as still and soon falls asleep.");
+		num("leafRestTime", "Rest time", Cost.NONE, LOOK, 0, 5, 0.05,
+			"Seconds a leaf has to stay still before it sleeps. Sleeping piles cost almost nothing.");
+		num("leafWakeSpeed", "Wake speed", Cost.NONE, LOOK, 0, 5, 0.05,
+			"A sleeping leaf wakes when something pushes it faster than this.");
+		num("leafKick", "Kick strength", Cost.NONE, LOOK, 0, 5, 0.05,
+			"How hard players and mobs kick leaves up when walking through a pile.");
+		num("leafBurnTime", "Burn time", Cost.NONE, LOOK, 0.05, 10, 0.05,
+			"Seconds a leaf glows and chars in lava or fire before it is gone.");
+		num("leafWindStrength", "Wind strength", Cost.NONE, LOOK, 0, 20, 0.1,
+			"Wind speed during rain, in blocks per second. Thunderstorms blow twice as hard. There is no wind in clear weather.");
+		num("leafWindLift", "Wind lift", Cost.LOW, "Lifted leaves stay awake, so stronger lift keeps more of the pile simulated.", 0, 5, 0.05,
+			"How often gusts pick resting leaves back up during rain.");
+		num("leafMaxSpeed", "Max speed", Cost.NONE, LOOK, 1, 50, 0.5,
+			"Speed limit for leaves in blocks per second, so blasts don't fling them out of the world.");
+		integer("leafMaxStepsPerFrame", "Max steps per frame", Cost.MEDIUM, "Each step is three small compute passes per pile.", 1, 32,
+			"Upper limit on leaf substeps per frame.");
+		num("leafBrightness", "Brightness", Cost.NONE, LOOK, 0.2, 3, 0.05,
+			"Brightness of the leaves.");
+		toggle("leafSounds", "Leaf sounds", Cost.LOW, "Plays a few sounds per second near moving leaves.",
+			"Rustling sounds from leaves that are kicked up or blown around.");
+
+		category("Water pump");
+		num("waveMakerRate", "Pump rate", Cost.NONE, LOOK, 0.1, 30, 0.1,
+			"How much of the water behind a fully powered water pump it moves to the front each second (4 = about four blocks of water per second). Weaker redstone signals pump less.");
+		num("waveMakerSpeed", "Jet speed scale", Cost.NONE, LOOK, 0.1, 5, 0.05,
+			"Multiplies how fast water leaves the front for every speed setting (slow 2, medium 4, fast 14 blocks per second).");
 
 		category("TNT and explosions");
 		toggle("tntReactions", "Explosions push fluids", Cost.LOW, "One small pass per explosion per body it reaches.",

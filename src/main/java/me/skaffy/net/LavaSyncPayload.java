@@ -2,7 +2,9 @@ package me.skaffy.net;
 
 import me.skaffy.ModContent;
 import me.skaffy.RealisticWater;
+import me.skaffy.block.RealisticLeavesBlock;
 import me.skaffy.block.RealisticWaterBlock;
+import me.skaffy.fluid.FluidMixing;
 import me.skaffy.fluid.RealisticLavaFluid;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -68,10 +70,11 @@ public record LavaSyncPayload(long[] positions, byte[] amounts) implements Custo
 				if (ours) {
 					level.setBlock(pos, Blocks.AIR.defaultBlockState(), SYNC_FLAGS);
 				}
-			} else if (ours || current.isAir()) {
+			} else if (ours || current.isAir() || current.getBlock() instanceof RealisticLeavesBlock) {
 				BlockState target = stateFor(amount);
 				if (current != target) {
 					level.setBlock(pos, target, SYNC_FLAGS);
+					FluidMixing.solidifyIfTouchingWater(level, pos);
 				}
 			}
 		}

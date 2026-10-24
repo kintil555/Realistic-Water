@@ -2,6 +2,7 @@
   "block.realistic-water.realistic_water": "Realistic Water",
   "block.realistic-water.realistic_lava": "Realistic Lava",
   "block.realistic-water.realistic_sand": "Realistic Sand",
+  "block.realistic-water.realistic_leaves": "Realistic Leaves",
   "item.realistic-water.realistic_water_bucket": "Realistic Water Bucket",
   "item.realistic-water.realistic_lava_bucket": "Realistic Lava Bucket",
   "block.realistic-water.realistic_slime": "Realistic Slime",
@@ -42,5 +43,18 @@
   "skaffys-api.shaders.back": "Back",
   "skaffys-api.shaders.copyFailed": "Couldn't add: %s",
   "skaffys-api.shaders.settings.rebuildsTag": "Rebuilds",
-  "skaffys-api.options.shaders.needsVulkan": "Shader packs need the Vulkan graphics API (Graphics API above, then restart)."
+  "skaffys-api.options.shaders.needsVulkan": "Shader packs need the Vulkan graphics API (Graphics API above, then restart).",
+  "item.realistic-water.realistic_block": "Realistic Block",
+  "item.realistic-water.realistic_block.of": "Realistic %s",
+  "item.realistic-water.realistic_converter": "Realistic Converter",
+  "container.realistic-water.converter": "Realistic Converter",
+  "entity.realistic-water.realistic_block": "Realistic Block",
+  "entity.realistic-water.realistic_boat": "Realistic Boat",
+  "item.realistic-water.realistic_boat": "Realistic Boat",
+  "block.realistic-water.wave_maker": "Water Pump",
+  "block.realistic-water.wave_maker.speed": "Pump speed: %s",
+  "block.realistic-water.wave_maker.speed.slow": "slow",
+  "block.realistic-water.wave_maker.speed.medium": "medium",
+  "block.realistic-water.wave_maker.speed.fast": "fast",
+  "subtitles.realistic-water.block.wave_maker.run": "Water Pump hums"
 }

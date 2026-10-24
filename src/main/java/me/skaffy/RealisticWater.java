@@ -1,6 +1,15 @@
 package me.skaffy;
 
+import me.skaffy.net.BodyPushPayload;
+import me.skaffy.net.BodyStatePayload;
+import me.skaffy.net.BreakRealisticPayload;
+import me.skaffy.net.FluidMixPayload;
+import me.skaffy.net.FlowPayload;
+import me.skaffy.realistic.RealisticPhysics;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import me.skaffy.net.LavaSyncPayload;
+import me.skaffy.net.LeavesSyncPayload;
 import me.skaffy.net.RemoveAllWaterPayload;
 import me.skaffy.net.SandSyncPayload;
 import me.skaffy.net.SlimeSyncPayload;
@@ -28,7 +37,24 @@ public class RealisticWater implements ModInitializer {
 		PayloadTypeRegistry.serverboundPlay().register(SandSyncPayload.TYPE, SandSyncPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(LavaSyncPayload.TYPE, LavaSyncPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(SlimeSyncPayload.TYPE, SlimeSyncPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(LeavesSyncPayload.TYPE, LeavesSyncPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RemoveAllWaterPayload.TYPE, RemoveAllWaterPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(FluidMixPayload.TYPE, FluidMixPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(BreakRealisticPayload.TYPE, BreakRealisticPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(FlowPayload.TYPE, FlowPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(BodyStatePayload.TYPE, BodyStatePayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(BodyPushPayload.TYPE, BodyPushPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(BodyPushPayload.TYPE, BodyPushPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(BodyStatePayload.TYPE, (payload, context) -> context.server().execute(() -> payload.apply(context.player())));
+		ServerPlayNetworking.registerGlobalReceiver(BodyPushPayload.TYPE, (payload, context) -> context.server().execute(() -> payload.apply(context.player())));
+		ServerPlayNetworking.registerGlobalReceiver(FlowPayload.TYPE, (payload, context) -> {
+			if (isAuthority(context.server(), context.player())) {
+				context.server().execute(() -> payload.apply(context.player()));
+			}
+		});
+		ServerTickEvents.END_LEVEL_TICK.register(RealisticPhysics::tick);
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> RealisticPhysics.clear());
+		ServerPlayNetworking.registerGlobalReceiver(BreakRealisticPayload.TYPE, (payload, context) -> context.server().execute(() -> payload.apply(context.player())));
 		ServerPlayNetworking.registerGlobalReceiver(WaterSyncPayload.TYPE, (payload, context) -> {
 			if (isAuthority(context.server(), context.player())) {
 				context.server().execute(() -> payload.apply(context.player()));
@@ -45,6 +71,16 @@ public class RealisticWater implements ModInitializer {
 			}
 		});
 		ServerPlayNetworking.registerGlobalReceiver(SlimeSyncPayload.TYPE, (payload, context) -> {
+			if (isAuthority(context.server(), context.player())) {
+				context.server().execute(() -> payload.apply(context.player()));
+			}
+		});
+		ServerPlayNetworking.registerGlobalReceiver(LeavesSyncPayload.TYPE, (payload, context) -> {
+			if (isAuthority(context.server(), context.player())) {
+				context.server().execute(() -> payload.apply(context.player()));
+			}
+		});
+		ServerPlayNetworking.registerGlobalReceiver(FluidMixPayload.TYPE, (payload, context) -> {
 			if (isAuthority(context.server(), context.player())) {
 				context.server().execute(() -> payload.apply(context.player()));
 			}

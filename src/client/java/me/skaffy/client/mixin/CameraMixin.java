@@ -1,6 +1,5 @@
 package me.skaffy.client.mixin;
 
-import me.skaffy.fluid.RealisticLavaFluid;
 import me.skaffy.fluid.RealisticSlimeFluid;
 import me.skaffy.fluid.RealisticWaterFluid;
 import net.minecraft.client.Camera;
@@ -26,7 +25,7 @@ public class CameraMixin {
 			return;
 		}
 		FluidState fluid = this.level.getFluidState(((Camera) (Object) this).blockPosition());
-		if (RealisticWaterFluid.isRealistic(fluid) || RealisticLavaFluid.isRealistic(fluid) || RealisticSlimeFluid.isRealistic(fluid)) {
+		if (RealisticWaterFluid.isRealistic(fluid) || RealisticSlimeFluid.isRealistic(fluid)) {
 			cir.setReturnValue(FogType.NONE);
 		}
 	}

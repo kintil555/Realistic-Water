@@ -51,6 +51,9 @@ public final class WaterCommands {
 			.then(literal("slime")
 				.executes(c -> ball(c, 2, Material.SLIME))
 				.then(argument("size", IntegerArgumentType.integer(1, 64)).executes(c -> ball(c, IntegerArgumentType.getInteger(c, "size"), Material.SLIME))))
+			.then(literal("leaves")
+				.executes(c -> ball(c, 2, Material.LEAVES))
+				.then(argument("size", IntegerArgumentType.integer(1, 64)).executes(c -> ball(c, IntegerArgumentType.getInteger(c, "size"), Material.LEAVES))))
 			.then(literal("remove")
 				.executes(c -> {
 					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.WATER);
@@ -70,6 +73,11 @@ public final class WaterCommands {
 				.then(literal("slime").executes(c -> {
 					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.SLIME);
 					c.getSource().sendFeedback(Component.literal("Removing all realistic slime around you"));
+					return 1;
+				}))
+				.then(literal("leaves").executes(c -> {
+					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.LEAVES);
+					c.getSource().sendFeedback(Component.literal("Removing all realistic leaves around you"));
 					return 1;
 				})))
 			.then(literal("set")

@@ -130,6 +130,33 @@ public final class WaterSettings {
 	public static float sandBrightness = 1.1F;
 	public static boolean sandSounds = true;
 
+	public static int leafResolution = 8;
+	public static int leavesPerBlock = 200;
+	public static int leafCellCapacity = 1;
+	public static float leafSize = 0.3125F;
+	public static float leafFallSpeed = 1.2F;
+	public static float leafSinkSpeed = 0.25F;
+	public static float leafFlutter = 0.8F;
+	public static float leafAirDrag = 1.2F;
+	public static float leafTumbleRate = 5.0F;
+	public static float leafGroundFriction = 10.0F;
+	public static int leafRepose = 2;
+	public static float leafShuffleSpeed = 1.5F;
+	public static float leafRestSpeed = 0.06F;
+	public static float leafRestTime = 0.5F;
+	public static float leafWakeSpeed = 0.3F;
+	public static float leafKick = 1.4F;
+	public static float leafBurnTime = 0.6F;
+	public static float leafWindStrength = 2.5F;
+	public static float leafWindLift = 0.5F;
+	public static float leafMaxSpeed = 12.0F;
+	public static int leafMaxStepsPerFrame = 8;
+	public static float leafBrightness = 1.0F;
+	public static boolean leafSounds = true;
+
+	public static float waveMakerRate = 4.0F;
+	public static float waveMakerSpeed = 1.0F;
+
 	public static int lavaResolution = 6;
 	public static float lavaFlipRatio = 0.9993F;
 	public static float lavaMaxSpeed = 5.0F;
@@ -152,6 +179,9 @@ public final class WaterSettings {
 	public static float lavaSpecular = 2.5F;
 	public static boolean lavaFlowSounds = true;
 	public static boolean lavaIgniteFlammables = true;
+	public static boolean lavaWaterMixing = true;
+	public static float lavaMixLavaMin = 0.06F;
+	public static float lavaMixWaterMin = 0.03F;
 
 	public static int slimeResolution = 4;
 	public static float slimeFlipRatio = 0.9F;
@@ -303,6 +333,9 @@ public final class WaterSettings {
 		}
 		if ("lavaIgniteFlammables".equals(name) && t == boolean.class) {
 			ModSettings.lavaIgniteFlammables = (boolean) f.get(null);
+		}
+		if ("lavaWaterMixing".equals(name) && t == boolean.class) {
+			ModSettings.lavaWaterMixing = (boolean) f.get(null);
 		}
 		return String.valueOf(f.get(null));
 	}

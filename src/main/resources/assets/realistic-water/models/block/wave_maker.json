@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "top": "realistic-water:block/wave_maker_top",
+    "front": "realistic-water:block/wave_maker_front",
+    "side": "realistic-water:block/wave_maker_side"
+  }
+}

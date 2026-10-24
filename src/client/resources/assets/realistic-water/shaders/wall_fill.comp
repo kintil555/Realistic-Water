@@ -4,13 +4,23 @@ layout(local_size_x = 256) in;
 layout(std430, binding = 1) readonly buffer Src { float src[]; };
 layout(std430, binding = 2) writeonly buffer Dst { float dst[]; };
 layout(std430, binding = 3) readonly buffer Static { uint staticSolid[]; };
+layout(std430, binding = 4) readonly buffer Flags { uint cellFlags[]; };
 layout(push_constant) uniform PC { ivec4 a; } pc;
 
 const ivec3 DIRS[6] = ivec3[](ivec3(1, 0, 0), ivec3(-1, 0, 0), ivec3(0, 1, 0), ivec3(0, -1, 0), ivec3(0, 0, 1), ivec3(0, 0, -1));
 
 bool solidFine(ivec3 p) {
     ivec3 c = p / G.fine.w;
-    return all(greaterThanEqual(p, ivec3(0))) && inGrid(c) && staticSolid[cellIndex(c)] != 0u;
+    if (!all(greaterThanEqual(p, ivec3(0))) || !inGrid(c)) {
+        return false;
+    }
+    int i = cellIndex(c);
+    if (staticSolid[i] != 0u) {
+        return true;
+    }
+    uint f = cellFlags[i];
+    int e = int(f >> 8) - 1;
+    return (f & 0xFFu) == CELL_SOLID && e >= 0 && entIsBody(e);
 }
 
 float load(ivec3 p) {

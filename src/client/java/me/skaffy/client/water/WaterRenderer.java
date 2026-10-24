@@ -126,7 +126,7 @@ public final class WaterRenderer implements AutoCloseable {
 			WaterRegion r = body.region();
 			if (r.takeFieldStale()) {
 				boolean sort = WaterSettings.surfaceGather && WaterSettings.sortParticles;
-				r.mesher.build(cb, body.ubo(), r.currentParticles(), r.counters, WaterRegion.C_FLUID + r.cur, r.args, r.staticSolid, r.mesher.fineBox(r.box),
+				r.mesher.build(cb, body.ubo(), r.currentParticles(), r.counters, WaterRegion.C_FLUID + r.cur, r.args, r.staticSolid, r.cellFlags, r.mesher.fineBox(r.box),
 					WaterSettings.sheetFill, sort ? r.spareParticles() : null, WaterRegion.C_FLUID + 1 - r.cur);
 				if (sort) {
 					r.useSpareParticles();

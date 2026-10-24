@@ -8,6 +8,7 @@ public final class SyncMaterial {
 	public static final byte SAND = 1;
 	public static final byte LAVA = 2;
 	public static final byte SLIME = 3;
+	public static final byte LEAVES = 4;
 
 	private SyncMaterial() {
 	}
@@ -17,6 +18,7 @@ public final class SyncMaterial {
 			case SAND -> ModContent.REALISTIC_SAND;
 			case LAVA -> ModContent.REALISTIC_LAVA_BLOCK;
 			case SLIME -> ModContent.REALISTIC_SLIME_BLOCK;
+			case LEAVES -> ModContent.REALISTIC_LEAVES;
 			default -> ModContent.REALISTIC_WATER_BLOCK;
 		};
 	}
@@ -26,6 +28,7 @@ public final class SyncMaterial {
 			case SAND -> "sand";
 			case LAVA -> "lava";
 			case SLIME -> "slime";
+			case LEAVES -> "leaves";
 			default -> "water";
 		};
 	}

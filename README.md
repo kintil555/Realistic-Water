@@ -1,8 +1,7 @@
 # Realistic Water
-A Minecraft mod that adds the realistic water, realistic lava, and realistic sand from Blender animations.
+A Minecraft mod that adds a lot of cool, realistic stuff from Minecraft Blender animations.
 
-<img width="1280" height="720" alt="New Project - 2026-10-22T130136 126" src="https://github.com/user-attachments/assets/cb1baac9-09d7-4165-b434-42a06b2d0de2" />
-
+(image of me standing on the house but the original screenshot)
 
 #
 
@@ -12,20 +11,23 @@ How to use:
 2. Install Fabric (Tutorial: https://docs.fabricmc.net/players/installing-fabric/)
 3. Put the mod to the mods folder
 4. Open the game and set the Graphics API in the Video Settings to Vulkan and then restart the game
-5. Place down a ball of water with "/water ball" or lava with "/water lava"
-6. Or go in your Creative inventory and get a "Realistic Water Bucket", "Realistic Lava Bucket", "Realistic Sand", or "Realistic Slime Bucket"
-7. Remove water, lava, sand, or slime with "/water remove", "/water remove lava", "/water remove sand", "/water remove slime"
-8. Edit settings about the realistic stuff in a GUI you can open with "/water gui"
-9. Use shaders: Video Settings -> Shader Packs, they work best on Vulkan 
+5. Search up "Realistic" in the creative inventory to look at all the items from the mod
+6. Use the "Realistic Convertor" to convert boats, redstone, or any full blocks into realistic blocks that have gravity
+7. Remove them: use "/water remove" to remove water and "/water remove <block>" for everything else 
+8. Use "Water Pump" to move water in ways it couldn't flow by itself (has to be powered by redstone)
+9. Customize most things about how things look/move in "/water gui"
+8. Use shaders! There are shaders in this mod, but they are in beta. If you still wanna try them out: Video Settings -> Shader Packs, they work best on Vulkan 
+
+IMPORTANT: Mods like Sodium, Iris or any other mod that hooks into the render, might not be 100% stable with this mod. This doesn't mean that they instant crash your game, just might some things will be weird.
 
 #
 
-Screenshots:
+Water pumps:
 
-<img width="1280" height="720" alt="New Project - 2026-10-22T130206 528" src="https://github.com/user-attachments/assets/c7f5a1ec-5565-4819-a13d-79dfe33c0c01" />
+(image of water pumps work and other water stuff like boats)
 
-<img width="1280" height="720" alt="New Project - 2026-10-22T130250 837" src="https://github.com/user-attachments/assets/331818af-9f87-483a-9980-4da6c25f545b" />
+Everything else:
 
-#
+(screenshot of everything else in the mod)
 
 Credits: https://github.com/claude and https://github.com/eva-akselrad

@@ -3,6 +3,8 @@
 	"package": "me.skaffy.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"RealisticBlockMinecraftMixin",
+		"BlockLightEngineMixin",
 		"BlockModelLighterMixin",
 		"BossHealthOverlayAccessor",
 		"BufferBuilderMixin",
@@ -24,6 +26,8 @@
 		"LevelExtractorMixin",
 		"LevelRendererAccessor",
 		"LevelRendererMixin",
+		"LightEngineAccessor",
+		"LocalPlayerMixin",
 		"MinecraftMixin",
 		"MouseHandlerMixin",
 		"OptionsMixin",

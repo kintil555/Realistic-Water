@@ -123,26 +123,65 @@ vec3 collideStatic(vec3 x, vec3 xn, inout vec3 v) {
 
 vec3 collideEntities(vec3 x, inout vec3 v) {
     for (int e = 0; e < numEntities(); e++) {
-        vec3 lo = entMin(e);
-        vec3 hi = entMax(e);
-        if (any(lessThan(x, lo)) || any(greaterThan(x, hi))) {
+        vec3 s;
+        vec3 n;
+        if (!entInside(e, x, 0.0, s, n)) {
             continue;
         }
-        vec3 dLo = x - lo;
-        vec3 dHi = hi - x;
         vec3 ve = entVel(e);
-        int axis = 0;
-        float best = 1e9;
-        float dir = 1.0;
-        for (int a = 0; a < 3; a++) {
-            if (dLo[a] < best) { best = dLo[a]; axis = a; dir = -1.0; }
-            if (dHi[a] < best) { best = dHi[a]; axis = a; dir = 1.0; }
+        x = s;
+        float vn = dot(v, n);
+        float en = dot(ve, n);
+        if (vn < en) {
+            v += n * (en - vn);
         }
-        x[axis] = dir > 0.0 ? hi[axis] + 0.01 : lo[axis] - 0.01;
-        v[axis] = dir * max(dir * v[axis], dir * ve[axis]);
         if (isSlime()) {
             v = mix(v, ve, G.matA.z);
         }
+    }
+    return x;
+}
+
+float intakeFill(vec3 lo, vec3 hi) {
+    int wet = 0;
+    for (int k = 0; k < 27; k++) {
+        vec3 f = (vec3(k % 3, (k / 3) % 3, k / 9) + 0.5) / 3.0;
+        if (countAt(ivec3(floor(mix(lo, hi, f)))) > 0) {
+            wet++;
+        }
+    }
+    return float(wet) / 27.0;
+}
+
+vec3 pumpWater(vec3 x, inout vec3 v, inout uint seed) {
+    for (int e = 0; e < numEntities(); e++) {
+        if (!entIsPump(e)) {
+            continue;
+        }
+        vec3 lo = G.ent[e * 3].xyz;
+        vec3 hi = G.ent[e * 3 + 1].xyz;
+        vec3 shift = G.ent[e * 3 + 2].xyz;
+        vec3 dir = normalize(shift);
+        float speed = G.ent[e * 3 + 1].w;
+        vec3 back = -dir * (hi.x - lo.x);
+        vec3 pullLo = min(lo, lo + back);
+        vec3 pullHi = max(hi, hi + back);
+        if (any(lessThan(x, pullLo)) || any(greaterThan(x, pullHi))) {
+            continue;
+        }
+        float along = dot(v, dir);
+        if (along < 0.5 * speed) {
+            v += dir * min(0.5 * speed - along, 3.0 * speed * DT);
+        }
+        if (any(lessThan(x, lo)) || any(greaterThan(x, hi))) {
+            return x;
+        }
+        float chance = G.ent[e * 3].w * DT / max(intakeFill(lo, hi), 0.08);
+        if (rand(seed) < chance && !solidAt(x + shift)) {
+            x += shift;
+            v = dir * speed + (v - dir * dot(v, dir)) * 0.3;
+        }
+        return x;
     }
     return x;
 }
@@ -232,6 +271,8 @@ void main() {
     }
     vec3 xn = collideStatic(x, x + dx, v);
     xn = collideEntities(xn, v);
+    uint pumpSeed = hash(i * 2654435761u + uint(pc.a.w) * 40503u);
+    xn = pumpWater(xn, v, pumpSeed);
     if (any(isnan(xn)) || any(isinf(xn)) || any(isnan(v))) {
         return;
     }

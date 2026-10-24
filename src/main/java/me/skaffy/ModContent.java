@@ -1,14 +1,29 @@
 package me.skaffy;
 
 import me.skaffy.block.RealisticLavaBlock;
+import me.skaffy.block.RealisticLeavesBlock;
 import me.skaffy.block.RealisticSandBlock;
 import me.skaffy.block.RealisticWaterBlock;
+import me.skaffy.block.WaveMakerBlock;
 import me.skaffy.fluid.RealisticLavaFluid;
 import me.skaffy.fluid.RealisticSlimeFluid;
 import me.skaffy.fluid.RealisticWaterFluid;
+import me.skaffy.realistic.ConverterItem;
+import me.skaffy.realistic.ConverterMenu;
+import me.skaffy.realistic.RealisticBlockEntity;
+import me.skaffy.realistic.RealisticBlockItem;
+import me.skaffy.realistic.RealisticBoatEntity;
+import me.skaffy.realistic.RealisticBoatItem;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.flag.FeatureFlags;
+import net.minecraft.world.inventory.MenuType;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -128,6 +143,77 @@ public final class ModContent {
 	public static final ResourceKey<Item> REALISTIC_SAND_ITEM_KEY = ResourceKey.create(Registries.ITEM, RealisticWater.id("realistic_sand"));
 	public static final Item REALISTIC_SAND_ITEM = registerBlockItem(REALISTIC_SAND_ITEM_KEY, REALISTIC_SAND);
 
+	public static final ResourceKey<Block> REALISTIC_LEAVES_KEY = ResourceKey.create(Registries.BLOCK, RealisticWater.id("realistic_leaves"));
+	public static final Block REALISTIC_LEAVES = Registry.register(BuiltInRegistries.BLOCK, REALISTIC_LEAVES_KEY, new RealisticLeavesBlock(
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.COLOR_ORANGE)
+			.strength(0.2F)
+			.sound(SoundType.AZALEA_LEAVES)
+			.noOcclusion()
+			.ignitedByLava()
+			.pushReaction(PushReaction.POPPED)
+			.isSuffocating((state, level, pos) -> false)
+			.isViewBlocking((state, level, pos, box) -> false)
+			.setId(REALISTIC_LEAVES_KEY)
+	));
+
+	public static final ResourceKey<Item> REALISTIC_LEAVES_ITEM_KEY = ResourceKey.create(Registries.ITEM, RealisticWater.id("realistic_leaves"));
+	public static final Item REALISTIC_LEAVES_ITEM = registerBlockItem(REALISTIC_LEAVES_ITEM_KEY, REALISTIC_LEAVES);
+
+	public static final ResourceKey<Block> WAVE_MAKER_KEY = ResourceKey.create(Registries.BLOCK, RealisticWater.id("wave_maker"));
+	public static final Block WAVE_MAKER = Registry.register(BuiltInRegistries.BLOCK, WAVE_MAKER_KEY, new WaveMakerBlock(
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.WARPED_WART_BLOCK)
+			.instrument(NoteBlockInstrument.BASEDRUM)
+			.strength(1.5F, 6.0F)
+			.sound(SoundType.METAL)
+			.setId(WAVE_MAKER_KEY)
+	));
+
+	public static final ResourceKey<Item> WAVE_MAKER_ITEM_KEY = ResourceKey.create(Registries.ITEM, RealisticWater.id("wave_maker"));
+	public static final Item WAVE_MAKER_ITEM = registerBlockItem(WAVE_MAKER_ITEM_KEY, WAVE_MAKER);
+	public static final SoundEvent WAVE_MAKER_RUN = Registry.register(BuiltInRegistries.SOUND_EVENT, RealisticWater.id("block.wave_maker.run"),
+		SoundEvent.createVariableRangeEvent(RealisticWater.id("block.wave_maker.run")));
+
+	public static final DataComponentType<Identifier> SOURCE_BLOCK = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, RealisticWater.id("source_block"),
+		DataComponentType.<Identifier>builder().persistent(Identifier.CODEC).networkSynchronized(Identifier.STREAM_CODEC).build());
+
+	public static final ResourceKey<Item> REALISTIC_BLOCK_ITEM_KEY = ResourceKey.create(Registries.ITEM, RealisticWater.id("realistic_block"));
+	public static final Item REALISTIC_BLOCK_ITEM = Registry.register(BuiltInRegistries.ITEM, REALISTIC_BLOCK_ITEM_KEY,
+		new RealisticBlockItem(new Item.Properties().setId(REALISTIC_BLOCK_ITEM_KEY)));
+
+	public static final DataComponentType<Identifier> SOURCE_ITEM = Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, RealisticWater.id("source_item"),
+		DataComponentType.<Identifier>builder().persistent(Identifier.CODEC).networkSynchronized(Identifier.STREAM_CODEC).build());
+
+	public static final ResourceKey<Item> REALISTIC_BOAT_ITEM_KEY = ResourceKey.create(Registries.ITEM, RealisticWater.id("realistic_boat"));
+	public static final Item REALISTIC_BOAT_ITEM = Registry.register(BuiltInRegistries.ITEM, REALISTIC_BOAT_ITEM_KEY,
+		new RealisticBoatItem(new Item.Properties().stacksTo(1).setId(REALISTIC_BOAT_ITEM_KEY)));
+
+	public static final ResourceKey<Item> CONVERTER_KEY = ResourceKey.create(Registries.ITEM, RealisticWater.id("realistic_converter"));
+	public static final Item CONVERTER = Registry.register(BuiltInRegistries.ITEM, CONVERTER_KEY,
+		new ConverterItem(new Item.Properties().stacksTo(1).setId(CONVERTER_KEY)));
+
+	public static final MenuType<ConverterMenu> CONVERTER_MENU = Registry.register(BuiltInRegistries.MENU, RealisticWater.id("realistic_converter"),
+		new MenuType<>(ConverterMenu::new, FeatureFlags.VANILLA_SET));
+
+	public static final ResourceKey<EntityType<?>> REALISTIC_BLOCK_ENTITY_KEY = ResourceKey.create(Registries.ENTITY_TYPE, RealisticWater.id("realistic_block"));
+	public static final EntityType<RealisticBlockEntity> REALISTIC_BLOCK_ENTITY = Registry.register(BuiltInRegistries.ENTITY_TYPE, REALISTIC_BLOCK_ENTITY_KEY,
+		EntityType.Builder.<RealisticBlockEntity>of(RealisticBlockEntity::new, MobCategory.MISC)
+			.sized(1.0F, 1.0F)
+			.clientTrackingRange(10)
+			.updateInterval(1)
+			.noLootTable()
+			.build(REALISTIC_BLOCK_ENTITY_KEY));
+
+	public static final ResourceKey<EntityType<?>> REALISTIC_BOAT_KEY = ResourceKey.create(Registries.ENTITY_TYPE, RealisticWater.id("realistic_boat"));
+	public static final EntityType<RealisticBoatEntity> REALISTIC_BOAT = Registry.register(BuiltInRegistries.ENTITY_TYPE, REALISTIC_BOAT_KEY,
+		EntityType.Builder.<RealisticBoatEntity>of(RealisticBoatEntity::new, MobCategory.MISC)
+			.sized(1.375F, 0.5625F)
+			.clientTrackingRange(10)
+			.updateInterval(1)
+			.noLootTable()
+			.build(REALISTIC_BOAT_KEY));
+
 	private ModContent() {
 	}
 
@@ -143,8 +229,13 @@ public final class ModContent {
 				output.insertAfter(Items.WATER_BUCKET, REALISTIC_WATER_BUCKET);
 				output.insertAfter(Items.LAVA_BUCKET, REALISTIC_LAVA_BUCKET);
 				output.insertAfter(REALISTIC_LAVA_BUCKET, REALISTIC_SLIME_BUCKET);
+				output.insertAfter(REALISTIC_SLIME_BUCKET, CONVERTER);
+				output.insertAfter(CONVERTER, WAVE_MAKER_ITEM);
 			});
 		CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS)
-			.register(output -> output.insertAfter(Items.SAND, REALISTIC_SAND_ITEM));
+			.register(output -> {
+				output.insertAfter(Items.SAND, REALISTIC_SAND_ITEM);
+				output.insertAfter(Items.OAK_LEAVES, REALISTIC_LEAVES_ITEM);
+			});
 	}
 }

@@ -101,7 +101,7 @@ final class SurfaceMesher implements AutoCloseable {
 				new ComputeProgram("mesh_bin.comp", U, S, S, S, S),
 				new ComputeProgram("zb_gather.comp", U, S, S, S, S, S),
 				new ComputeProgram("mesh_bin_total.comp", U, S, S, S),
-				new ComputeProgram("wall_fill.comp", U, S, S, S)
+				new ComputeProgram("wall_fill.comp", U, S, S, S, S)
 			};
 		}
 		this.clear = shared[0];
@@ -150,13 +150,13 @@ final class SurfaceMesher implements AutoCloseable {
 	}
 
 	void build(VkCommandBuffer cb, Desc ubo, VkBuf particles, VkBuf counters, int counterIndex, VkBuf dispatchArgs, VkBuf staticSolid,
-		int[] fineBox, boolean fillSheets, @Nullable VkBuf sortInto, int sortCounter) {
+		VkBuf cellFlags, int[] fineBox, boolean fillSheets, @Nullable VkBuf sortInto, int sortCounter) {
 		this.buildField(cb, ubo, particles, counters, counterIndex, dispatchArgs, fineBox, fillSheets, sortInto, sortCounter);
 		if (WaterSettings.wallFill && WaterSettings.wallFillReach > 0.0F) {
 			int reach = Math.max(1, Math.round(WaterSettings.wallFillReach * this.subdivision));
 			this.densA.copyTo(cb, this.densB, 0, 0, this.densA.size);
 			Vk.barrier(cb);
-			this.wallFill.bind(cb, ubo, Desc.ssbo(this.densB), Desc.ssbo(this.densA), Desc.ssbo(staticSolid));
+			this.wallFill.bind(cb, ubo, Desc.ssbo(this.densB), Desc.ssbo(this.densA), Desc.ssbo(staticSolid), Desc.ssbo(cellFlags));
 			this.wallFill.push(cb, reach);
 			this.wallFill.dispatch(cb, ComputeProgram.groups(voxels(fineBox), 256), 1, 1);
 			Vk.barrier(cb);

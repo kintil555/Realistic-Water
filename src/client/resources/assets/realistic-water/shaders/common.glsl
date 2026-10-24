@@ -76,7 +76,11 @@ bool isLava() {
 }
 
 bool isSlime() {
-    return G.matA.x > 2.5;
+    return abs(G.matA.x - 3.0) < 0.5;
+}
+
+bool isLeaves() {
+    return G.matA.x > 3.5;
 }
 
 #define NX G.dims.x
@@ -189,13 +193,88 @@ int numEntities() {
     return G.caps.z;
 }
 
+bool entIsCell(int e) { return abs(G.ent[e * 3 + 2].w - 1.0) < 0.5; }
+bool entIsPump(int e) { return G.ent[e * 3 + 2].w > 1.5; }
+bool entIsBox(int e) { return G.ent[e * 3 + 2].w < -1e-4; }
+bool entIsBody(int e) { return entIsCell(e) || entIsBox(e); }
 vec3 entMin(int e) { return G.ent[e * 3].xyz; }
 vec3 entMax(int e) { return G.ent[e * 3 + 1].xyz; }
-vec3 entVel(int e) { return G.ent[e * 3 + 2].xyz; }
+vec3 entVel(int e) { return entIsBody(e) ? G.ent[e * 3 + 1].xyz : G.ent[e * 3 + 2].xyz; }
+
+vec3 quatRotate(vec4 q, vec3 v) {
+    vec3 t = 2.0 * cross(q.xyz, v);
+    return v + q.w * t + cross(q.xyz, t);
+}
+
+bool entInside(int e, vec3 p, float pad, out vec3 surface, out vec3 normal) {
+    surface = p;
+    normal = vec3(0.0, 1.0, 0.0);
+    if (entIsPump(e)) {
+        return false;
+    }
+    if (entIsBody(e)) {
+        vec3 c = G.ent[e * 3].xyz;
+        vec4 q;
+        vec3 h;
+        if (entIsBox(e)) {
+            vec3 qv = vec3(G.ent[e * 3].w, G.ent[e * 3 + 1].w, G.ent[e * 3 + 2].x);
+            q = vec4(qv, sqrt(max(1.0 - dot(qv, qv), 0.0)));
+            h = vec3(G.ent[e * 3 + 2].y, G.ent[e * 3 + 2].z, -G.ent[e * 3 + 2].w) + pad;
+        } else {
+            q = vec4(G.ent[e * 3].w, G.ent[e * 3 + 1].w, G.ent[e * 3 + 2].x, G.ent[e * 3 + 2].y);
+            h = vec3(G.ent[e * 3 + 2].z + pad);
+        }
+        vec3 l = quatRotate(vec4(-q.xyz, q.w), p - c);
+        vec3 d = h - abs(l);
+        if (any(lessThan(d, vec3(0.0)))) {
+            return false;
+        }
+        int a = d.x < d.y ? (d.x < d.z ? 0 : 2) : (d.y < d.z ? 1 : 2);
+        vec3 n = vec3(0.0);
+        n[a] = l[a] >= 0.0 ? 1.0 : -1.0;
+        vec3 ls = l;
+        ls[a] = n[a] * (h[a] + 0.01);
+        surface = c + quatRotate(q, ls);
+        normal = quatRotate(q, n);
+        return true;
+    }
+    vec3 lo = entMin(e) - pad;
+    vec3 hi = entMax(e) + pad;
+    if (any(lessThan(p, lo)) || any(greaterThan(p, hi))) {
+        return false;
+    }
+    vec3 dLo = p - lo;
+    vec3 dHi = hi - p;
+    int axis = 0;
+    float best = 1e9;
+    float dir = 1.0;
+    for (int a = 0; a < 3; a++) {
+        if (dLo[a] < best) { best = dLo[a]; axis = a; dir = -1.0; }
+        if (dHi[a] < best) { best = dHi[a]; axis = a; dir = 1.0; }
+    }
+    surface = p;
+    surface[axis] = dir > 0.0 ? hi[axis] + 0.01 : lo[axis] - 0.01;
+    normal = vec3(0.0);
+    normal[axis] = dir;
+    return true;
+}
+
+bool insideBodyCell(vec3 p) {
+    vec3 s;
+    vec3 n;
+    for (int e = 0; e < numEntities(); e++) {
+        if (entIsBody(e) && entInside(e, p, 0.0, s, n)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 int entityAt(vec3 p) {
+    vec3 s;
+    vec3 n;
     for (int e = 0; e < numEntities(); e++) {
-        if (all(greaterThanEqual(p, entMin(e))) && all(lessThanEqual(p, entMax(e)))) {
+        if (entInside(e, p, 0.0, s, n)) {
             return e;
         }
     }

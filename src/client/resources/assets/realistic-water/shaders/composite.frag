@@ -188,7 +188,6 @@ vec3 shadeAboveWater(vec2 uv, vec3 n, float fd, float sceneDist, float ambient, 
     vec3 Rw = (G.invView * vec4(Rv, 0.0)).xyz;
     float hit;
     vec3 ssr = traceReflection(P + n * 0.05, Rv, hit);
-    // no bright sky or sun glints where the sky can't reach (caves, under roofs)
     float skyVisible = smoothstep(0.0, 0.7, bs.y);
     vec3 reflection = mix(reflectedSky(Rv, Rw) * mix(lightColor * 0.3, vec3(1.0), skyVisible), ssr, hit);
     float F = 0.02 + 0.98 * pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 5.0);
@@ -317,6 +316,19 @@ void main() {
         }
         outColor = vec4(slime, 1.0);
         gl_FragDepth = slimeDepth;
+        return;
+    }
+    bool vanillaLavaFog = lavaPass && G.killInfo.w > 0.0;
+    if (vanillaLavaFog) {
+        if (!hasFluid) {
+            discard;
+        }
+        vec3 lavaColor = underwater ? G.scatter.rgb * (1.2 + G.skyColor.w) * 1.35 : shadeAboveLava(uv, g.xyz, fd, G.skyColor.w);
+        float dist = length(viewPosAt(uv, fd));
+        float f = clamp((dist - G.killInfo.z) / max(G.killInfo.w - G.killInfo.z, 1e-3), 0.0, 1.0);
+        outColor = vec4(mix(lavaColor, G.fogColor.rgb, f), 1.0);
+        vec4 clip = G.proj * vec4(viewPosAt(uv, fd), 1.0);
+        gl_FragDepth = clip.z / clip.w;
         return;
     }
     if (!hasFluid && foam.a < 1e-3 && !underwater) {
