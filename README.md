@@ -23,6 +23,8 @@ IMPORTANT: Mods like Sodium, Iris or any other mod that hooks into the render, m
 
 If you wanna try the built in shaders out, DON'T use sodium
 
+Showcase: https://www.youtube.com/watch?v=GG2-psEHUI4
+
 #
 
 Water pumps:
