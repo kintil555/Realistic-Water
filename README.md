@@ -1,7 +1,7 @@
 # Realistic Water
 A Minecraft mod that adds a lot of cool, realistic stuff from Minecraft Blender animations.
 
-(image of me standing on the house but the original screenshot, with shaders)
+<img width="2560" height="1440" alt="2026-10-25_13 38 34" src="https://github.com/user-attachments/assets/763ad9c4-3169-44e1-b085-c127f5e2c3d7" />
 
 #
 
@@ -36,10 +36,10 @@ A: Never
 
 **Water pumps:**
 
-(image of water pumps work and other water stuff like boats, without shaders)
+<img width="1920" height="1080" alt="Still 2026-10-24 125037_1 78 1" src="https://github.com/user-attachments/assets/0b443877-8610-4ed4-9aa7-7e3a6ae1f6ad" />
 
 **Everything else:**
 
-(screenshot of everything else in the mod, without shaders)
+<img width="1280" height="720" alt="New Project - 2026-10-24T125259 436" src="https://github.com/user-attachments/assets/5559a179-8878-4f9e-a3c3-4126bc5fccd6" />
 
 Credits: https://github.com/claude and https://github.com/eva-akselrad
