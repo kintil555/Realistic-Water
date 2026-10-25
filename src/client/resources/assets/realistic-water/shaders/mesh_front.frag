@@ -19,7 +19,7 @@ void main() {
     }
     vec3 n = normalize(vNormal);
     outG = vec4(n, dist);
-    vec3 rel = mat3(G.invView) * vView;
+    vec3 rel = (G.invView * vec4(vView, 1.0)).xyz;
     vec3 nWorld = mat3(G.invView) * n;
     outMat = vec4(G.matA.x, regionLightAt(relToSim(rel + nWorld * 0.5)), 0.0);
 }

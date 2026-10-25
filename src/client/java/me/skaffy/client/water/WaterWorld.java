@@ -1,8 +1,5 @@
 package me.skaffy.client.water;
 
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.renderpearl.backend.vulkan.VulkanConst;
-import com.mojang.renderpearl.backend.vulkan.VulkanGpuTexture;
 import com.mojang.renderpearl.backend.vulkan.VulkanGpuTextureView;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -20,7 +17,7 @@ import me.skaffy.ModContent;
 import me.skaffy.RealisticWater;
 import me.skaffy.block.RealisticLeavesBlock;
 import me.skaffy.block.RealisticSandBlock;
-import me.skaffy.client.shader.ShaderRenderer;
+import me.skaffy.client.compat.FrameTarget;
 import me.skaffy.client.vk.Desc;
 import me.skaffy.client.vk.Vk;
 import me.skaffy.client.vk.VkBuf;
@@ -85,7 +82,7 @@ import org.lwjgl.vulkan.VkCommandBuffer;
 public final class WaterWorld {
 	private static final WaterWorld INSTANCE = new WaterWorld();
 	static final int UBO_SLOT = 8192;
-	static final int UBO_SIZE = 4320;
+	static final int UBO_SIZE = 3936;
 	static final float PARTICLES_PER_CELL = 8.0F;
 	static final float SAND_POISSON = 0.3F;
 
@@ -163,6 +160,10 @@ public final class WaterWorld {
 	private @Nullable LeafRenderer leafRenderer;
 	private @Nullable VkBuf uboRing;
 	private @Nullable VkBuf frameView;
+	private @Nullable VkTex layerDepth;
+	private final List<WaterRenderer.Body> lateSand = new ArrayList<>();
+	private final List<WaterRenderer.Body> lateLeaves = new ArrayList<>();
+	private long lateLightmap;
 	private boolean paused;
 	private boolean failed;
 	private long lastFrameNanos;
@@ -179,8 +180,7 @@ public final class WaterWorld {
 	private int builtSlimeResolution = WaterSettings.slimeResolution;
 	private int builtLeafResolution = WaterSettings.leafResolution;
 	private int lastSandSteps;
-	private boolean hdr;
-	private ShaderRenderer.@Nullable ColoredLightState coloredLight;
+	private boolean layerOutput;
 	private float lastSandDt;
 
 	public static WaterWorld get() {
@@ -967,7 +967,7 @@ public final class WaterWorld {
 		return out;
 	}
 
-	public void renderFrame() {
+	public void renderFrame(@Nullable FrameTarget target) {
 		Minecraft mc = Minecraft.getInstance();
 		if (this.regions.isEmpty() || this.failed || mc.level == null || Vk.tryDevice() == null) {
 			this.lastFrameNanos = 0L;
@@ -975,8 +975,9 @@ public final class WaterWorld {
 			return;
 		}
 		try {
-			this.renderFrameUnsafe(mc, mc.level);
+			this.renderFrameUnsafe(mc, mc.level, target);
 		} catch (RuntimeException e) {
+			Vk.endRecording();
 			this.failed = true;
 			RealisticWater.LOGGER.error("Realistic Water frame failed; disabling the simulation", e);
 			if (mc.player != null) {
@@ -989,9 +990,12 @@ public final class WaterWorld {
 
 	private static final double[][] FLOW_SAMPLES = {{0.8, 0.0, 0.0}, {-0.8, 0.0, 0.0}, {0.0, 0.0, 0.8}, {0.0, 0.0, -0.8}, {0.0, -0.8, 0.0}};
 
-	private void probeBodyFlow(VkCommandBuffer cb, Desc ubo, ClientLevel level, WaterRegion r) {
+	private record FlowProbe(float[] points, int[] owners, int count) {
+	}
+
+	private static @Nullable FlowProbe flowProbe(ClientLevel level, WaterRegion r) {
 		if (!r.hasWindow) {
-			return;
+			return null;
 		}
 		AABB window = new AABB(r.ox, r.oy, r.oz, r.ox + r.sx, r.oy + r.sy, r.oz + r.sz);
 		float[] points = new float[WaterRegion.MAX_FLOW_POINTS * 3];
@@ -1012,7 +1016,7 @@ public final class WaterWorld {
 				}
 			}
 		}
-		r.recordFlowProbe(cb, ubo, points, owners, n);
+		return n > 0 ? new FlowProbe(points, owners, n) : null;
 	}
 
 	private void sendBodyFlows() {
@@ -1073,7 +1077,7 @@ public final class WaterWorld {
 		return out;
 	}
 
-	private void renderFrameUnsafe(Minecraft mc, ClientLevel level) {
+	private void renderFrameUnsafe(Minecraft mc, ClientLevel level, @Nullable FrameTarget target) {
 		long now = System.nanoTime();
 		Float clipDt = ClipRecorder.get().fixedDt();
 		float frameDt = clipDt != null ? clipDt
@@ -1168,12 +1172,7 @@ public final class WaterWorld {
 		this.lastSandDt = sandDt;
 		this.simTime += steps * stepDt;
 
-		RenderTarget main = mc.gameRenderer.mainRenderTarget();
-		VulkanGpuTexture color = (VulkanGpuTexture) main.getColorTexture();
-		VulkanGpuTexture depth = (VulkanGpuTexture) main.getDepthTexture();
-		VulkanGpuTextureView colorView = (VulkanGpuTextureView) main.getColorTextureView();
-		VulkanGpuTextureView depthView = (VulkanGpuTextureView) main.getDepthTextureView();
-		if (active.isEmpty() || color == null || depth == null || colorView == null || depthView == null) {
+		if (active.isEmpty() || target == null) {
 			this.retire(level, merged, drained);
 			Vk.endFrame();
 			this.frameCounter++;
@@ -1192,20 +1191,32 @@ public final class WaterWorld {
 			this.uboRing = VkBuf.upload((long) UBO_SLOT * MAX_REGIONS * Vk.FRAME_RING, VkBuf.UNIFORM);
 			this.frameView = VkBuf.device(16, 0);
 		}
-		int width = main.width;
-		int height = main.height;
-		int colorFormat = VulkanConst.toVk(color.getFormat());
-		this.hdr = colorFormat != VkTex.RGBA8;
-		this.coloredLight = ShaderRenderer.coloredLightState();
-		long lightmap = mc.gameRenderer.lightmap() instanceof VulkanGpuTextureView lightmapView ? lightmapView.vkImageView() : depthView.vkImageView();
-		WaterRenderer.LightViews lights = this.coloredLight != null
-			? new WaterRenderer.LightViews(lightmap, this.coloredLight.views()[0], this.coloredLight.views()[1], this.coloredLight.views()[2])
-			: new WaterRenderer.LightViews(lightmap, lightmap, lightmap, lightmap);
+		int width = target.width();
+		int height = target.height();
+		int colorFormat = target.colorFormat();
+		this.layerOutput = target.layer();
+		long lightmap = mc.gameRenderer.lightmap() instanceof VulkanGpuTextureView lightmapView ? lightmapView.vkImageView() : target.depthView();
 		this.renderer.prepare(width, height, colorFormat);
+		long depthImage = target.depthImage();
+		long depthView = target.depthView();
+		if (target.layer()) {
+			if (this.layerDepth == null || this.layerDepth.width != width || this.layerDepth.height != height) {
+				if (this.layerDepth != null) {
+					Vk.destroyLater(this.layerDepth);
+				}
+				this.layerDepth = new VkTex(VkTex.D32, width, height, VkTex.COPY_DST | VkTex.COPY_SRC | VkTex.DEPTH | VkTex.SAMPLED);
+			}
+			depthImage = this.layerDepth.image;
+			depthView = this.layerDepth.view;
+		}
 
 		VkCommandBuffer cb = Vk.encoder().allocateAndBeginTransientCommandBuffer();
-		Vk.flushTransitions(cb);
+		Vk.beginRecording(cb);
 		Vk.barrier(cb);
+		if (target.layer()) {
+			VkTex.copy(cb, target.depthImage(), depthImage, VK10.VK_IMAGE_ASPECT_DEPTH_BIT, width, height);
+			Vk.barrier(cb);
+		}
 		this.frameView.fill(cb, 0);
 		Vk.barrier(cb);
 		boolean readFill = !this.paused;
@@ -1213,6 +1224,7 @@ public final class WaterWorld {
 		List<WaterRenderer.Body> sandBodies = new ArrayList<>();
 		List<WaterRenderer.Body> leafBodies = new ArrayList<>();
 		boolean windy = level.isRaining() && WaterSettings.leafWindStrength > 0.0F && WaterSettings.leafWindLift > 0.0F;
+		List<Runnable> recordings = new ArrayList<>(active.size());
 		for (int i = 0; i < active.size(); i++) {
 			WaterRegion r = active.get(i);
 			r.planWindow(level, this.solids(r.material, r.res), r.boxWorld);
@@ -1233,31 +1245,132 @@ public final class WaterWorld {
 			List<float[]> removals = r.takeRemovals();
 			int numSources = this.writeGlobals(mc, level, r, slot, sand ? sandDt : leaves ? leafDt : stepDt, width, height, removals);
 			Desc ubo = Desc.ubo(this.uboRing, (long) slot * UBO_SLOT, UBO_SIZE);
-			r.record(cb, ubo, regionSteps, numSources, this.frameCounter, this.frameView, removals.size(), regionBlasts);
-			if (r.material == Material.WATER && isHost()) {
-				this.probeBodyFlow(cb, ubo, level, r);
-			}
+			FlowProbe probe = r.material == Material.WATER && isHost() ? flowProbe(level, r) : null;
+			int frame = this.frameCounter;
+			VkBuf view = this.frameView;
+			int removalCount = removals.size();
+			recordings.add(() -> {
+				r.record(cb, ubo, regionSteps, numSources, frame, view, removalCount, regionBlasts);
+				if (probe != null) {
+					r.recordFlowProbe(cb, ubo, probe.points(), probe.owners(), probe.count());
+				}
+			});
 			(sand ? sandBodies : leaves ? leafBodies : waterBodies).add(new WaterRenderer.Body(r, ubo));
 		}
+		Vk.interleave(cb, recordings);
 		Vk.barrier(cb);
-		if (!sandBodies.isEmpty()) {
-			this.sandRenderer.record(cb, sandBodies, width, height, colorFormat, colorView.vkImageView(), depthView.vkImageView(), lights);
-			Vk.barrier(cb);
-		}
-		if (!leafBodies.isEmpty()) {
-			this.leafRenderer.record(cb, leafBodies, width, height, colorFormat, colorView.vkImageView(), depthView.vkImageView(), lights);
-			Vk.barrier(cb);
+		this.lateSand.clear();
+		this.lateLeaves.clear();
+		if (target.layer()) {
+			this.lateSand.addAll(sandBodies);
+			this.lateLeaves.addAll(leafBodies);
+			this.lateLightmap = lightmap;
+		} else {
+			if (!sandBodies.isEmpty()) {
+				this.sandRenderer.record(cb, sandBodies, width, height, colorFormat, target.colorView(), depthView, lightmap);
+				Vk.barrier(cb);
+			}
+			if (!leafBodies.isEmpty()) {
+				this.leafRenderer.record(cb, leafBodies, width, height, colorFormat, target.colorView(), depthView, lightmap);
+				Vk.barrier(cb);
+			}
 		}
 		if (!waterBodies.isEmpty()) {
-			this.renderer.record(cb, waterBodies, Desc.ssbo(this.frameView), color.vkImage(), colorView.vkImageView(), depth.vkImage(),
-				depthView.vkImageView(), lights);
+			this.renderer.record(cb, waterBodies, Desc.ssbo(this.frameView), target.colorImage(), target.colorView(), depthImage,
+				depthView, lightmap, target.layer(), fluidArea(mc, waterBodies, width, height));
 		}
 		Vk.barrier(cb);
+		Vk.endRecording();
 		Vk.check(VK10.vkEndCommandBuffer(cb), "vkEndCommandBuffer");
 		Vk.encoder().execute(cb);
 		this.retire(level, merged, drained);
 		Vk.endFrame();
 		this.frameCounter++;
+	}
+
+	private static int @Nullable [] fluidArea(Minecraft mc, List<WaterRenderer.Body> bodies, int width, int height) {
+		CameraRenderState camera = mc.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+		Vec3 cam = camera.pos;
+		Matrix4f clip = new Matrix4f(LEVEL_PROJECTION).mul(camera.viewRotationMatrix);
+		float minX = Float.MAX_VALUE;
+		float minY = Float.MAX_VALUE;
+		float maxX = -Float.MAX_VALUE;
+		float maxY = -Float.MAX_VALUE;
+		Vector4f corner = new Vector4f();
+		for (WaterRenderer.Body body : bodies) {
+			WaterRegion r = body.region();
+			double pad = 1.0 + (double) WaterRegion.KILL_MARGIN / r.res;
+			double x0 = r.ox - pad - cam.x;
+			double y0 = r.oy - pad - cam.y;
+			double z0 = r.oz - pad - cam.z;
+			double x1 = r.ox + r.sx + pad - cam.x;
+			double y1 = r.oy + r.sy + pad - cam.y;
+			double z1 = r.oz + r.sz + pad - cam.z;
+			if (x0 <= 1.0 && y0 <= 1.0 && z0 <= 1.0 && x1 >= -1.0 && y1 >= -1.0 && z1 >= -1.0) {
+				return null;
+			}
+			for (int k = 0; k < 8; k++) {
+				corner.set((float) ((k & 1) == 0 ? x0 : x1), (float) ((k & 2) == 0 ? y0 : y1), (float) ((k & 4) == 0 ? z0 : z1), 1.0F);
+				clip.transform(corner);
+				if (corner.w < 0.05F) {
+					return null;
+				}
+				float nx = corner.x / corner.w;
+				float ny = corner.y / corner.w;
+				minX = Math.min(minX, nx);
+				minY = Math.min(minY, ny);
+				maxX = Math.max(maxX, nx);
+				maxY = Math.max(maxY, ny);
+			}
+		}
+		int px0 = Mth.clamp((int) Math.floor((minX * 0.5F + 0.5F) * width) - 4, 0, width);
+		int py0 = Mth.clamp((int) Math.floor((minY * 0.5F + 0.5F) * height) - 4, 0, height);
+		int px1 = Mth.clamp((int) Math.ceil((maxX * 0.5F + 0.5F) * width) + 4, 0, width);
+		int py1 = Mth.clamp((int) Math.ceil((maxY * 0.5F + 0.5F) * height) + 4, 0, height);
+		if (px1 - px0 < 4 || py1 - py0 < 4) {
+			return new int[]{0, 0, Math.min(4, width), Math.min(4, height)};
+		}
+		return new int[]{px0, py0, px1 - px0, py1 - py0};
+	}
+
+	public void beginLevel() {
+		this.lateSand.clear();
+		this.lateLeaves.clear();
+	}
+
+	public boolean hasLate() {
+		return !this.lateSand.isEmpty() || !this.lateLeaves.isEmpty();
+	}
+
+	public void renderLate(FrameTarget target) {
+		if (!this.hasLate() || this.failed || this.sandRenderer == null || this.leafRenderer == null) {
+			this.beginLevel();
+			return;
+		}
+		try {
+			VkCommandBuffer cb = Vk.encoder().allocateAndBeginTransientCommandBuffer();
+			Vk.beginRecording(cb);
+			Vk.barrier(cb);
+			if (!this.lateSand.isEmpty()) {
+				this.sandRenderer.record(cb, this.lateSand, target.width(), target.height(), target.colorFormat(), target.colorView(),
+					target.depthView(), this.lateLightmap);
+				Vk.barrier(cb);
+			}
+			if (!this.lateLeaves.isEmpty()) {
+				this.leafRenderer.record(cb, this.lateLeaves, target.width(), target.height(), target.colorFormat(), target.colorView(),
+					target.depthView(), this.lateLightmap);
+				Vk.barrier(cb);
+			}
+			Vk.endRecording();
+			Vk.check(VK10.vkEndCommandBuffer(cb), "vkEndCommandBuffer");
+			Vk.encoder().execute(cb);
+		} catch (RuntimeException e) {
+			Vk.endRecording();
+			this.failed = true;
+			RealisticWater.LOGGER.error("Realistic Water late draw failed; disabling the simulation", e);
+		} finally {
+			this.beginLevel();
+		}
 	}
 
 	private void retire(ClientLevel level, List<WaterRegion> merged, List<WaterRegion> drained) {
@@ -1325,8 +1438,9 @@ public final class WaterWorld {
 		putFloats(b, o + 144, WaterSettings.wwFoamLifeMin, WaterSettings.wwFoamLifeMax, WaterSettings.wwBubbleBuoyancy, WaterSettings.wwBubbleDrag);
 		putFloats(b, o + 160, WaterSettings.wwSprayDrag, WaterSettings.wwSprayThreshold, WaterSettings.wwBubbleThreshold, WaterSettings.wwMaxPerParticle);
 
-		Matrix4f proj = new Matrix4f(LEVEL_PROJECTION);
-		Matrix4f view = new Matrix4f(camera.viewRotationMatrix);
+		Matrix4f proj = new Matrix4f(camera.projectionMatrix);
+		Matrix4f bob = new Matrix4f(proj).invert().mul(LEVEL_PROJECTION);
+		Matrix4f view = bob.mul(camera.viewRotationMatrix);
 		proj.get(o + 176, b);
 		view.get(o + 240, b);
 		new Matrix4f(proj).invert().get(o + 304, b);
@@ -1336,8 +1450,7 @@ public final class WaterWorld {
 		putFloats(b, o + 432, (float) (r.ox - cam.x), (float) (r.oy - cam.y), (float) (r.oz - cam.z), h);
 		putFloats(b, o + 448, width, height, 1.0F / width, 1.0F / height);
 
-		Vector3f sunDir = new Matrix3f().rotateY((float) Math.toRadians(-90.0)).rotateZ((float) Math.toRadians(ShaderRenderer.sunPathRotation()))
-			.rotateX(sky.sunAngle).transform(new Vector3f(0.0F, 1.0F, 0.0F)).normalize();
+		Vector3f sunDir = new Matrix3f().rotateY((float) Math.toRadians(-90.0)).rotateX(sky.sunAngle).transform(new Vector3f(0.0F, 1.0F, 0.0F)).normalize();
 		Vector4f sunWorld = new Vector4f(sunDir, 0.0F);
 		Vector4f sunView = view.transform(new Vector4f(sunWorld));
 		float sunIntensity = Mth.clamp(sunWorld.y * 4.0F, 0.0F, 1.0F) * (1.0F - sky.rainBrightness * 0.8F);
@@ -1428,15 +1541,7 @@ public final class WaterWorld {
 		if (leaves) {
 			this.writeLeafGlobals(level, b, o, res);
 		}
-		boolean pack = ShaderRenderer.running();
-		boolean shadows = pack && ShaderRenderer.shadowDepth() != null;
-		float lightScale = this.hdr ? WaterSettings.shaderLightScale : 1.0F;
-		putFloats(b, o + 3920, pack ? (WaterSettings.shaderSkyFromScreen ? 2.0F : 1.0F) : 0.0F, lightScale, this.hdr ? WaterSettings.shaderSpecularCap : 30.0F, shadows ? 1.0F : 0.0F);
-		for (int c = 0; c < 3; c++) {
-			ShaderRenderer.shadowCascade(c, cam).get(o + 3936 + c * 64, b);
-		}
-		putFloats(b, o + 4128, WaterSettings.sandShaderSun, WaterSettings.sandShaderSky, WaterSettings.shaderShadowBias, 0.0F);
-		this.writeColoredLight(b, o + 4144, cam);
+		putFloats(b, o + 3920, this.layerOutput ? 1.0F : 0.0F, WaterSettings.underwaterMirror ? 1.0F : 0.0F, 0.0F, 0.0F);
 		this.uboRing.flush(o, UBO_SIZE);
 		return sourceCount;
 	}
@@ -1455,26 +1560,6 @@ public final class WaterWorld {
 		double turn = level.getGameTime() / 2400.0;
 		float heading = (float) (0.6 + 1.1 * Math.sin(turn) + 0.4 * Math.sin(turn * 2.7 + 1.0));
 		putFloats(b, o + 3904, Mth.cos(heading) * strength, Mth.sin(heading) * strength, rain * (1.0F + thunder) * 0.5F, WaterSettings.leafWindLift);
-	}
-
-	private void writeColoredLight(ByteBuffer b, int o, Vec3 cam) {
-		ShaderRenderer.ColoredLightState light = this.coloredLight;
-		if (light == null) {
-			for (int i = 0; i < 11; i++) {
-				putFloats(b, o + i * 16, 0.0F, 0.0F, 0.0F, 0.0F);
-			}
-			return;
-		}
-		int range = light.range();
-		int height = Math.max(range / 2, 1);
-		putFloats(b, o, (float) (light.originX() - cam.x), (float) (light.originY() - cam.y), (float) (light.originZ() - cam.z), range);
-		putFloats(b, o + 16, (float) (cam.x - Math.floor(cam.x / range) * range), (float) (cam.y - Math.floor(cam.y / height) * height),
-			(float) (cam.z - Math.floor(cam.z / range) * range), light.columns());
-		putFloats(b, o + 32, light.atlasWidth(), light.atlasHeight(), 1.0F, 0.0F);
-		float[] c = light.colors();
-		for (int i = 0; i < 8; i++) {
-			putFloats(b, o + 48 + i * 16, c[i * 4], c[i * 4 + 1], c[i * 4 + 2], c[i * 4 + 3]);
-		}
 	}
 
 	private static float wrap(double v) {
@@ -1804,6 +1889,10 @@ public final class WaterWorld {
 		if (this.uboRing != null) {
 			this.uboRing.close();
 			this.frameView.close();
+			if (this.layerDepth != null) {
+				this.layerDepth.close();
+				this.layerDepth = null;
+			}
 			this.uboRing = null;
 			this.frameView = null;
 		}

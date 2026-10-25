@@ -7,11 +7,8 @@ layout(location = 3) flat in vec3 vNormal;
 layout(location = 4) flat in float vBurn;
 layout(location = 0) out vec4 outColor;
 
-#define SHADOW_BINDING 3
-#define REGION_LIGHT_BINDING 4
-#define LIGHTMAP_BINDING 5
-#define COLOR_LIGHT_BINDING 6
-#include "shadow.glsl"
+#define REGION_LIGHT_BINDING 3
+#define LIGHTMAP_BINDING 4
 #include "region_light.glsl"
 #include "fluid_light.glsl"
 
@@ -29,21 +26,15 @@ void main() {
     albedo = mix(albedo, vec3(0.07, 0.05, 0.035), smoothstep(0.15, 0.75, vBurn));
 
     vec3 nWorld = normalize(vNormal);
-    vec3 rel = mat3(G.invView) * vView;
+    vec3 rel = (G.invView * vec4(vView, 1.0)).xyz;
     if (dot(nWorld, rel) > 0.0) {
         nWorld = -nWorld;
     }
     vec2 bs = regionLightAt(relToSim(rel + vec3(0.0, 0.25, 0.0)));
     vec3 n2 = nWorld * nWorld;
     float face = n2.x * 0.6 + n2.z * 0.8 + n2.y * (nWorld.y > 0.0 ? 1.0 : 0.5);
-    vec3 lit;
-    if (G.compat.y <= 1.0) {
-        lit = min(albedo * face * vanillaLight(bs) * G.matD.y, vec3(1.0));
-    } else {
-        vec3 lightN = normalize(nWorld + vec3(0.0, 1.0, 0.0));
-        lit = albedo * G.matD.y * shaderSurfaceLight(rel, vView, lightN, bs);
-    }
+    vec3 lit = min(albedo * face * vanillaLight(bs) * G.matD.y, vec3(1.0));
     float ember = sin(clamp(vBurn, 0.0, 1.0) * 3.14159) * (0.6 + 0.4 * fract(sin(dot(vUV, vec2(12.9898, 78.233))) * 43758.5453));
-    lit += vec3(1.0, 0.32, 0.05) * ember * 1.4 * G.compat.y;
+    lit += vec3(1.0, 0.32, 0.05) * ember * 1.4;
     outColor = vec4(lit, 1.0);
 }

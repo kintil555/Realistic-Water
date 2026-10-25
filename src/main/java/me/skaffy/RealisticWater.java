@@ -21,6 +21,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +88,7 @@ public class RealisticWater implements ModInitializer {
 		});
 		ServerPlayNetworking.registerGlobalReceiver(RemoveAllWaterPayload.TYPE, (payload, context) -> {
 			ServerPlayer player = context.player();
-			if (isAuthority(context.server(), player)) {
+			if (player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
 				context.server().execute(() -> {
 					int removed = payload.apply(player);
 					player.sendSystemMessage(Component.literal("Removed " + removed + " realistic " + SyncMaterial.label(payload.material()) + " blocks"));

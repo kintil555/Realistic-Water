@@ -7,6 +7,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -15,82 +16,91 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.phys.Vec3;
 
 public final class WaterCommands {
 	private WaterCommands() {
 	}
 
+	private static LiteralArgumentBuilder<FabricClientCommandSource> op(String name) {
+		return literal(name).requires(WaterCommands::isOperator);
+	}
+
+	private static boolean isOperator(FabricClientCommandSource source) {
+		return source.getPlayer().permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
+	}
+
 	public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandBuildContext context) {
 		dispatcher.register(literal("water")
 			.executes(WaterCommands::openMenu)
-			.then(literal("gui").executes(WaterCommands::openMenu))
-			.then(literal("stats").executes(c -> {
+			.then(op("gui").executes(WaterCommands::openMenu))
+			.then(op("stats").executes(c -> {
 				c.getSource().sendFeedback(Component.literal(WaterWorld.get().statsLine()));
 				return 1;
 			}))
-			.then(literal("pause").executes(c -> {
+			.then(op("pause").executes(c -> {
 				boolean paused = WaterWorld.get().togglePause();
 				c.getSource().sendFeedback(Component.literal(paused ? "Simulation paused" : "Simulation running"));
 				return 1;
 			}))
-			.then(literal("reload").executes(c -> {
+			.then(op("reload").executes(c -> {
 				WaterWorld.get().reload(c.getSource().getLevel());
 				c.getSource().sendFeedback(Component.literal("Re-reading realistic water blocks around you into fresh simulations"));
 				return 1;
 			}))
-			.then(literal("ball")
+			.then(op("ball")
 				.executes(c -> ball(c, 3, Material.WATER))
 				.then(argument("size", IntegerArgumentType.integer(1, 64)).executes(c -> ball(c, IntegerArgumentType.getInteger(c, "size"), Material.WATER))))
-			.then(literal("sand")
+			.then(op("sand")
 				.executes(c -> ball(c, 2, Material.SAND))
 				.then(argument("size", IntegerArgumentType.integer(1, 64)).executes(c -> ball(c, IntegerArgumentType.getInteger(c, "size"), Material.SAND))))
-			.then(literal("lava")
+			.then(op("lava")
 				.executes(c -> ball(c, 3, Material.LAVA))
 				.then(argument("size", IntegerArgumentType.integer(1, 64)).executes(c -> ball(c, IntegerArgumentType.getInteger(c, "size"), Material.LAVA))))
-			.then(literal("slime")
+			.then(op("slime")
 				.executes(c -> ball(c, 2, Material.SLIME))
 				.then(argument("size", IntegerArgumentType.integer(1, 64)).executes(c -> ball(c, IntegerArgumentType.getInteger(c, "size"), Material.SLIME))))
-			.then(literal("leaves")
+			.then(op("leaves")
 				.executes(c -> ball(c, 2, Material.LEAVES))
 				.then(argument("size", IntegerArgumentType.integer(1, 64)).executes(c -> ball(c, IntegerArgumentType.getInteger(c, "size"), Material.LEAVES))))
-			.then(literal("remove")
+			.then(op("remove")
 				.executes(c -> {
 					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.WATER);
 					c.getSource().sendFeedback(Component.literal("Removing all realistic water around you (springs included)"));
 					return 1;
 				})
-				.then(literal("sand").executes(c -> {
+				.then(op("sand").executes(c -> {
 					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.SAND);
 					c.getSource().sendFeedback(Component.literal("Removing all realistic sand around you"));
 					return 1;
 				}))
-				.then(literal("lava").executes(c -> {
+				.then(op("lava").executes(c -> {
 					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.LAVA);
 					c.getSource().sendFeedback(Component.literal("Removing all realistic lava around you (springs included)"));
 					return 1;
 				}))
-				.then(literal("slime").executes(c -> {
+				.then(op("slime").executes(c -> {
 					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.SLIME);
 					c.getSource().sendFeedback(Component.literal("Removing all realistic slime around you"));
 					return 1;
 				}))
-				.then(literal("leaves").executes(c -> {
+				.then(op("leaves").executes(c -> {
 					WaterWorld.get().removeAll(Minecraft.getInstance().options.renderDistance().get() + 2, Material.LEAVES);
 					c.getSource().sendFeedback(Component.literal("Removing all realistic leaves around you"));
 					return 1;
 				})))
-			.then(literal("set")
+			.then(op("set")
 				.then(argument("name", StringArgumentType.word())
 					.suggests((c, b) -> SharedSuggestionProvider.suggest(WaterSettings.fields().keySet(), b))
 					.then(argument("value", StringArgumentType.greedyString()).executes(WaterCommands::set))))
-			.then(literal("settings").executes(WaterCommands::listSettings))
-			.then(literal("render")
+			.then(op("settings").executes(WaterCommands::listSettings))
+			.then(op("render")
 				.executes(c -> {
 					c.getSource().sendFeedback(Component.literal(ClipRecorder.get().statusLine()));
 					return 1;
 				})
-				.then(literal("stop").executes(c -> {
+				.then(op("stop").executes(c -> {
 					c.getSource().sendFeedback(Component.literal(ClipRecorder.get().stop("stopped")));
 					return 1;
 				}))

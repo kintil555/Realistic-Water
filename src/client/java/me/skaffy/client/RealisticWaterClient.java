@@ -7,7 +7,7 @@ import me.skaffy.client.realistic.DynamicLights;
 import me.skaffy.client.realistic.RealisticBlockRenderer;
 import me.skaffy.client.realistic.RealisticBoatRenderer;
 import me.skaffy.client.realistic.RealisticPlatform;
-import me.skaffy.client.shader.ShaderPacks;
+import me.skaffy.client.compat.ShaderCompat;
 import me.skaffy.client.mixin.FogRendererAccessor;
 import me.skaffy.client.water.SlimeFogEnvironment;
 import me.skaffy.client.water.WaterCommands;
@@ -40,6 +40,7 @@ public class RealisticWaterClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		WaterSettings.load();
+		ShaderCompat.logEnvironment();
 		registerInvisibleFluid();
 		FogRendererAccessor.realisticWater$environments().addFirst(new SlimeFogEnvironment());
 		EntityRendererRegistry.register(ModContent.REALISTIC_BLOCK_ENTITY, RealisticBlockRenderer::new);
@@ -57,10 +58,7 @@ public class RealisticWaterClient implements ClientModInitializer {
 		ClientChunkEvents.CHUNK_LOAD.register(water::onChunkLoad);
 		ClientChunkEvents.CHUNK_UNLOAD.register(water::onChunkUnload);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> water.clear());
-		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-			ShaderPacks.shutdown();
-			water.shutdown();
-		});
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> water.shutdown());
 	}
 
 	private static void registerInvisibleFluid() {

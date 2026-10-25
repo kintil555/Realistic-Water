@@ -1060,7 +1060,6 @@ public final class WaterRegion implements AutoCloseable {
 		this.counters.fill(cb, C_MAX_SPEED * 4L, 4, 0);
 		p[2].bind(cb, ubo, Desc.ssbo(this.accum), Desc.ssbo(this.cellCount), Desc.ssbo(this.cellDens), Desc.ssbo(this.wwCount[wwDst]));
 		p[2].dispatch(cb, ComputeProgram.groups((long) boxCells(box) + boxFaces(box), 256), 1, 1);
-		Vk.barrier(cb);
 
 		p[0].bind(cb, ubo, Desc.ssbo(this.counters), Desc.ssbo(this.args));
 		p[0].push(cb, C_FLUID + src, C_WW + wwSrc);
@@ -1210,7 +1209,6 @@ public final class WaterRegion implements AutoCloseable {
 		this.counters.fill(cb, C_MAX_SPEED * 4L, 4, 0);
 		p[18].bind(cb, ubo, Desc.ssbo(this.mpmGrid), Desc.ssbo(this.cellCount));
 		p[18].dispatch(cb, cellGroups, 1, 1);
-		Vk.barrier(cb);
 
 		p[0].bind(cb, ubo, Desc.ssbo(this.counters), Desc.ssbo(this.args));
 		p[0].push(cb, C_FLUID + src, C_WW + this.wwCur);
@@ -1246,7 +1244,6 @@ public final class WaterRegion implements AutoCloseable {
 		this.counters.fill(cb, C_MAX_SPEED * 4L, 4, 0);
 		p[26].bind(cb, ubo, Desc.ssbo(this.cellCount), Desc.ssbo(this.cellFlags));
 		p[26].dispatch(cb, ComputeProgram.groups(boxCells(box), 256), 1, 1);
-		Vk.barrier(cb);
 
 		p[0].bind(cb, ubo, Desc.ssbo(this.counters), Desc.ssbo(this.args));
 		p[0].push(cb, C_FLUID + src, C_WW + this.wwCur);

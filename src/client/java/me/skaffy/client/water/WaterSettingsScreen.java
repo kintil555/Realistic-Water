@@ -125,7 +125,7 @@ public class WaterSettingsScreen extends OptionsSubScreen {
 		WaterSettingsInfo.Cost.HIGH, 0xFFA050,
 		WaterSettingsInfo.Cost.EXTREME, 0xFF6060);
 
-	static Component tooltip(WaterSettingsInfo.Info info) {
+	public static Component tooltip(WaterSettingsInfo.Info info) {
 		MutableComponent out = Component.empty();
 		out.append(Component.literal(info.label()).withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD));
 		out.append(Component.literal("\n/water set " + info.name()).withStyle(ChatFormatting.DARK_GRAY));
@@ -139,7 +139,7 @@ public class WaterSettingsScreen extends OptionsSubScreen {
 		return out;
 	}
 
-	static String format(WaterSettingsInfo.Info info, double value) {
+	public static String format(WaterSettingsInfo.Info info, double value) {
 		if (info.kind() == WaterSettingsInfo.Kind.INTEGER) {
 			return String.valueOf(Math.round(value));
 		}

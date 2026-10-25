@@ -249,6 +249,9 @@ public final class WaterSettingsInfo {
 			"How murky water is: higher shows more of the scatter colour and less of what's behind it.");
 		num("underwaterFog", "Underwater fog", Cost.NONE, LOOK, 0, 2, 0.01,
 			"How thick the fog is when your head is under water.");
+		toggle("underwaterMirror", "Underwater mirror", Cost.NONE, LOOK,
+			"Looking up from under water, the surface past about 48 degrees acts as a mirror like real water (total internal reflection), "
+				+ "showing dark deep water there. Off shows what is above the surface everywhere.");
 		num("surfaceSmoothing", "Surface smoothing", Cost.LOW, "Wider smoothing reads more neighbours per pixel.", 0, 1, 0.01,
 			"How much the surface normals are smoothed. Higher is glassier, lower shows more of the particle shapes.");
 		num("detailStrength", "Ripple strength", Cost.NONE, LOOK, 0, 2, 0.01,
@@ -479,20 +482,11 @@ public final class WaterSettingsInfo {
 			"Volume of all realistic water, lava, slime and sand sounds.");
 
 		category("Shader packs");
-		num("shaderLightScale", "HDR light scale", Cost.NONE, LOOK, 0, 10, 0.05,
-			"How bright water's colour, reflections and slime are while a shader pack renders in HDR.");
-		num("shaderSpecularCap", "HDR glint cap", Cost.NONE, LOOK, 1, 100, 0.5,
-			"Brightest a sun glint can get with a shader pack, so bloom doesn't blow up.");
-		num("shaderShadowBias", "Shadow bias", Cost.NONE, LOOK, 0, 0.01, 0.0001,
-			"Offset used when reading the shader pack's shadows on fluids. Raise it if fluids show striped shadow acne.");
-		toggle("shaderSkyFromScreen", "Sky from screen", Cost.LOW, "Reads the rendered sky instead of a simple sky colour.",
-			"Fluid reflections use the shader pack's actual sky on screen.");
-		toggle("shadowStagger", "Stagger shadows", Cost.MEDIUM, "Updates far shadow cascades less often, saving shadow rendering time.",
-			"Renders the near shadow cascade every frame, the middle one every 2nd and the far one every 4th.");
-		num("sandShaderSun", "Sun light", Cost.NONE, LOOK, 0, 10, 0.05,
-			"Sunlight strength on sand and slime with a shader pack. 3.4 matches Vista's own sun.");
-		num("sandShaderSky", "Sky light", Cost.NONE, LOOK, 0, 5, 0.05,
-			"Sky light strength on sand and slime with a shader pack.");
+		toggle("vitrailInsidePack", "Inside Vitrail packs (experimental)", Cost.LOW,
+			"Shades fluids twice per pixel while on; falls back to drawing on top if Vitrail changes.",
+			"With a Vitrail shader pack running, draws fluids into the pack's image before its effects, so its fog, bloom, tone mapping "
+				+ "and colour grading reach them. Fluids then can't refract what's behind them, and glass behind water is drawn over it. "
+				+ "Off draws fluids over the finished pack image instead.");
 
 		category("Clip recording");
 		integer("renderMaxStepsPerFrame", "Max substeps per clip frame", Cost.HIGH, "Only while /water render records; higher makes recording slower but more accurate.", 1, 256,

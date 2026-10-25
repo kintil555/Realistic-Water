@@ -3,9 +3,6 @@ package me.skaffy.client.water;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
-import com.mojang.renderpearl.backend.vulkan.VulkanGpuTextureView;
-import me.skaffy.client.shader.ShaderRenderer;
 import me.skaffy.client.vk.ComputeProgram;
 import me.skaffy.client.vk.Desc;
 import me.skaffy.client.vk.GraphicsProgram;
@@ -15,6 +12,7 @@ import me.skaffy.client.vk.Vk;
 import me.skaffy.client.vk.VkBuf;
 import me.skaffy.client.vk.VkTex;
 import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.VK10;
 import org.lwjgl.vulkan.VkCommandBuffer;
@@ -67,11 +65,11 @@ public final class WaterRenderer implements AutoCloseable {
 		this.dropletCull = new ComputeProgram("droplet_cull.comp", U, S, S, S, S, S, S);
 	}
 
-	private GraphicsProgram composite(int colorFormat) {
-		return this.composites.computeIfAbsent(colorFormat, format -> new GraphicsProgram("fullscreen.vert", "composite.frag", Map.of(),
-			new GraphicsProgram.State(format, VkTex.D32, true, true, VK10.VK_COMPARE_OP_ALWAYS, GraphicsProgram.Blend.NONE),
-			Desc.UBO, Desc.TEX, Desc.TEX, Desc.TEX, Desc.TEX, Desc.TEX, Desc.TEX, Desc.SSBO, Desc.TEX, Desc.SSBO, Desc.TEX, Desc.TEX, Desc.TEX,
-			Desc.TEX));
+	private GraphicsProgram composite(int colorFormat, boolean layer) {
+		return this.composites.computeIfAbsent(colorFormat * 2 + (layer ? 1 : 0), key -> new GraphicsProgram("fullscreen.vert", "composite.frag", Map.of(),
+			new GraphicsProgram.State(colorFormat, VkTex.D32, true, true, VK10.VK_COMPARE_OP_ALWAYS,
+				layer ? GraphicsProgram.Blend.PREMULTIPLIED : GraphicsProgram.Blend.NONE),
+			Desc.UBO, Desc.TEX, Desc.TEX, Desc.TEX, Desc.TEX, Desc.TEX, Desc.TEX, Desc.SSBO, Desc.SSBO, Desc.TEX));
 	}
 
 	private static boolean blendable(int format) {
@@ -115,24 +113,30 @@ public final class WaterRenderer implements AutoCloseable {
 	public record Body(WaterRegion region, Desc ubo) {
 	}
 
-	public record LightViews(long lightmap, long colorA, long colorB, long colorTint) {
-	}
-
 	public void record(VkCommandBuffer cb, List<Body> bodies, Desc view, long mainColorImage, long mainColorView, long mainDepthImage,
-		long mainDepthView, LightViews lights) {
+		long mainDepthView, long lightmap, boolean layer, int @Nullable [] area) {
 		int w = this.width;
 		int h = this.height;
+		int[] a = area != null ? area : new int[]{0, 0, w, h};
+		float[] readable = area != null
+			? new float[]{(a[0] + 1.0F) / w, (a[1] + 1.0F) / h, (a[0] + a[2] - 1.0F) / w, (a[1] + a[3] - 1.0F) / h}
+			: new float[]{-1.0F, -1.0F, 2.0F, 2.0F};
+		List<Runnable> meshes = new java.util.ArrayList<>(bodies.size());
 		for (Body body : bodies) {
 			WaterRegion r = body.region();
 			if (r.takeFieldStale()) {
 				boolean sort = WaterSettings.surfaceGather && WaterSettings.sortParticles;
-				r.mesher.build(cb, body.ubo(), r.currentParticles(), r.counters, WaterRegion.C_FLUID + r.cur, r.args, r.staticSolid, r.cellFlags, r.mesher.fineBox(r.box),
-					WaterSettings.sheetFill, sort ? r.spareParticles() : null, WaterRegion.C_FLUID + 1 - r.cur);
-				if (sort) {
-					r.useSpareParticles();
-				}
+				meshes.add(() -> {
+					r.mesher.build(cb, body.ubo(), r.currentParticles(), r.counters, WaterRegion.C_FLUID + r.cur, r.args, r.staticSolid, r.cellFlags,
+						r.mesher.fineBox(r.box), WaterSettings.sheetFill, sort ? r.spareParticles() : null, WaterRegion.C_FLUID + 1 - r.cur);
+					if (sort) {
+						r.useSpareParticles();
+					}
+				});
 			}
 		}
+		Vk.interleave(cb, meshes);
+		Vk.barrier(cb);
 		for (Body body : bodies) {
 			WaterRegion r = body.region();
 			this.dropletCull.bind(cb, body.ubo(), Desc.ssbo(r.currentParticles()), Desc.ssbo(r.mesher.densA), view, Desc.ssbo(r.args), Desc.ssbo(r.counters),
@@ -142,11 +146,12 @@ public final class WaterRenderer implements AutoCloseable {
 		}
 
 		VkTex.copy(cb, mainDepthImage, this.sceneDepth.image, VK10.VK_IMAGE_ASPECT_DEPTH_BIT, w, h);
-		VkTex.copy(cb, mainDepthImage, this.fluidZ.image, VK10.VK_IMAGE_ASPECT_DEPTH_BIT, w, h);
+		VkTex.copy(cb, mainDepthImage, this.fluidZ.image, VK10.VK_IMAGE_ASPECT_DEPTH_BIT, a[0], a[1], a[2], a[3]);
 		VkTex.copy(cb, mainColorImage, this.sceneColor.image, VK10.VK_IMAGE_ASPECT_COLOR_BIT, w, h);
 		Vk.barrier(cb);
 		Desc depthTex = Desc.tex(this.sceneDepth, this.nearest.handle);
 
+		GraphicsProgram.setArea(a[0], a[1], a[2], a[3]);
 		GraphicsProgram.begin(cb, w, h, this.gbuffer.view, new float[]{0, 0, 0, 0}, this.materialId.view, new float[]{-1, 0, 0, 0}, this.fluidZ.view);
 		for (Body body : bodies) {
 			WaterRegion r = body.region();
@@ -188,9 +193,7 @@ public final class WaterRenderer implements AutoCloseable {
 		GraphicsProgram.end(cb);
 		Vk.barrier(cb);
 
-		GpuTextureView shadowView = ShaderRenderer.shadowDepth();
-		Desc shadowTex = shadowView instanceof VulkanGpuTextureView vulkan ? Desc.tex(vulkan.vkImageView(), this.nearest.handle) : depthTex;
-		GraphicsProgram composite = this.composite(this.colorFormat);
+		GraphicsProgram composite = this.composite(this.colorFormat, layer);
 		GraphicsProgram.begin(cb, w, h, mainColorView, null, mainDepthView);
 		Desc matTex = Desc.tex(this.materialId, this.nearest.handle);
 		for (Material material : new Material[]{Material.WATER, Material.LAVA, Material.SLIME}) {
@@ -212,16 +215,14 @@ public final class WaterRenderer implements AutoCloseable {
 				Desc.tex(this.foam, this.linear.handle),
 				matTex,
 				view,
-				shadowTex,
 				Desc.ssbo(this.slimeTexture),
-				Desc.tex(lights.lightmap(), this.linear.handle),
-				Desc.tex(lights.colorA(), this.linear.handle),
-				Desc.tex(lights.colorB(), this.linear.handle),
-				Desc.tex(lights.colorTint(), this.linear.handle));
-			composite.push(cb, Program.f(material.shaderId()));
+				Desc.tex(lightmap, this.linear.handle));
+			composite.push(cb, Program.f(readable[0]), Program.f(readable[1]), Program.f(readable[2]), Program.f(readable[3]),
+				Program.f(material.shaderId()));
 			composite.draw(cb, 3, 1);
 		}
 		GraphicsProgram.end(cb);
+		GraphicsProgram.clearArea();
 	}
 
 	@Override

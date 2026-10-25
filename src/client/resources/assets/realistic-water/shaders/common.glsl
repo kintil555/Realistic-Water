@@ -57,14 +57,6 @@ layout(std140, set = 0, binding = 0) uniform Globals {
     vec4 matD;
     vec4 matE;
     vec4 compat;
-    mat4 shadowNear;
-    mat4 shadowMid;
-    mat4 shadowFar;
-    vec4 compatB;
-    vec4 lightA;
-    vec4 lightB;
-    vec4 lightC;
-    vec4 lightColors[8];
 } G;
 
 bool isSand() {

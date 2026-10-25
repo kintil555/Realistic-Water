@@ -1,8 +1,7 @@
 # Realistic Water
 A Minecraft mod that adds a lot of cool, realistic stuff from Minecraft Blender animations.
 
-<img width="1280" height="720" alt="New Project - 2026-10-23T184400 247" src="https://github.com/user-attachments/assets/ab90c5d9-7ce1-40f0-b7d1-f16f095327a3" />
-
+(image of me standing on the house but the original screenshot, with shaders)
 
 #
 
@@ -14,27 +13,33 @@ How to use:
 4. Open the game and set the Graphics API in the Video Settings to Vulkan and then restart the game
 5. Search up "Realistic" in the creative inventory to look at all the items from the mod
 6. Use the "Realistic Convertor" to convert boats, redstone, or any full blocks into realistic blocks that have gravity
-7. Remove them: use "/water remove" to remove water and "/water remove <block>" for everything else 
+7. Remove them: use "/water remove" to remove water and "/water remove <block>" for everything else (op only) 
 8. Use "Water Pump" to move water in ways it couldn't flow by itself (has to be powered by redstone)
-9. Customize most things about how things look/move in "/water gui"
-8. Use shaders! There are shaders in this mod, but they are in beta. If you still wanna try them out: Video Settings -> Shader Packs, they work best on Vulkan 
+9. Customize most things about how things look/move in "/water gui" (or just "/water" if you aren't op)
+8. Use shaders with Vitrail! Any OF/Iris shaders will work, download Vitrail from: https://modrinth.com/mod/vitrail-shaders
 
-IMPORTANT: Mods like Sodium, Iris or any other mod that hooks into the render, might not be 100% stable with this mod. This doesn't mean that they instant crash your game, just might some things will be weird.
-
-If you wanna try the built in shaders out, DON'T use sodium
-
-Showcase: https://www.youtube.com/watch?v=GG2-psEHUI4
+Realistic water finally got full support with Sodium and Vitrail shaders, if there are still any bugs, let me know!
 
 #
 
-Water pumps:
+### Answers to questions:
 
-<img width="1920" height="1080" alt="Still 2026-10-24 125037_1 78 1" src="https://github.com/user-attachments/assets/0b443877-8610-4ed4-9aa7-7e3a6ae1f6ad" />
+Q: River/Ocean support?
+A: Later
 
+Q: OpenGL support?
+A: Never
 
-Everything else:
+**Showcase:** https://www.youtube.com/watch?v=GG2-psEHUI4
 
-<img width="1280" height="720" alt="New Project - 2026-10-24T125259 436" src="https://github.com/user-attachments/assets/5559a179-8878-4f9e-a3c3-4126bc5fccd6" />
+#
 
+**Water pumps:**
+
+(image of water pumps work and other water stuff like boats, without shaders)
+
+**Everything else:**
+
+(screenshot of everything else in the mod, without shaders)
 
 Credits: https://github.com/claude and https://github.com/eva-akselrad

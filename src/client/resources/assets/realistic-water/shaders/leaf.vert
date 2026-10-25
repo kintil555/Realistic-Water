@@ -2,7 +2,7 @@
 #include "common.glsl"
 #include "leaf.glsl"
 layout(std430, binding = 1) readonly buffer Parts { Particle parts[]; };
-layout(std430, binding = 9) readonly buffer Static { uint staticSolid[]; };
+layout(std430, binding = 5) readonly buffer Static { uint staticSolid[]; };
 
 layout(location = 0) out vec2 vUV;
 layout(location = 1) out vec3 vView;

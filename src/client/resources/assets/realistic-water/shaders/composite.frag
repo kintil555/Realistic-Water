@@ -7,16 +7,29 @@ layout(binding = 4) uniform sampler2D sceneDepth;
 layout(binding = 5) uniform sampler2D foamTex;
 layout(binding = 6) uniform sampler2D materialTex;
 layout(std430, binding = 7) readonly buffer ViewState { vec4 viewState; };
-#define SHADOW_BINDING 8
-#include "shadow.glsl"
-layout(std430, binding = 9) readonly buffer SlimeTex { int slimeTex[]; };
-#define LIGHTMAP_BINDING 10
-#define COLOR_LIGHT_BINDING 11
+layout(std430, binding = 8) readonly buffer SlimeTex { int slimeTex[]; };
+#define LIGHTMAP_BINDING 9
 #include "fluid_light.glsl"
-layout(push_constant) uniform Push { float filterMat; } pc;
+layout(push_constant) uniform Push { vec4 area; float filterMat; } pc;
+
+bool readable(vec2 uv) {
+    return all(greaterThanEqual(uv, pc.area.xy)) && all(lessThanEqual(uv, pc.area.zw));
+}
+
+float thicknessAt(vec2 uv) {
+    return readable(uv) ? texture(thicknessTex, uv).r : 0.0;
+}
 layout(location = 0) out vec4 outColor;
 
 const float PI = 3.14159265;
+const float SPECULAR_CAP = 30.0;
+
+float gBackground = -1.0;
+float gDepth = 0.0;
+
+vec3 behindAt(vec2 uv) {
+    return gBackground < 0.0 ? texture(sceneColor, uv).rgb : vec3(gBackground);
+}
 
 float linearDepth(float device) {
     vec4 v = G.invProj * vec4(0.0, 0.0, device, 1.0);
@@ -43,25 +56,11 @@ vec3 skyColor(vec3 dirWorld) {
     return horizon * mix(0.9, 0.35, smoothstep(0.0, 0.35, -t));
 }
 
-vec3 reflectedSky(vec3 Rv, vec3 Rw) {
-    vec3 sky = skyColor(Rw) * G.compat.y;
-    if (G.compat.x < 1.5) {
-        return sky;
-    }
-    vec4 clip = G.proj * vec4(Rv * 1000.0, 1.0);
-    if (clip.w <= 0.0) {
-        return sky;
-    }
-    vec2 suv = clip.xy / clip.w * 0.5 + 0.5;
-    if (any(lessThan(suv, vec2(0.0))) || any(greaterThan(suv, vec2(1.0))) || texture(sceneDepth, suv).r > 0.0) {
-        return sky;
-    }
-    vec2 edge = smoothstep(vec2(0.0), vec2(0.1), suv) * (1.0 - smoothstep(vec2(0.9), vec2(1.0), suv));
-    return mix(sky, texture(sceneColor, suv).rgb, edge.x * edge.y);
-}
-
 vec3 traceReflection(vec3 origin, vec3 R, out float hit) {
     hit = 0.0;
+    if (gBackground >= 0.0) {
+        return vec3(0.0);
+    }
     vec3 pos = origin;
     float stepLen = 0.15;
     for (int i = 0; i < 48; i++) {
@@ -111,7 +110,7 @@ vec3 rippleNormal(vec3 nView, vec3 viewPos, float footprint) {
         return nView;
     }
     vec3 nWorld = normalize(mat3(G.invView) * nView);
-    vec3 world = G.misc.yzw + (G.invView * vec4(viewPos, 0.0)).xyz;
+    vec3 world = G.misc.yzw + (G.invView * vec4(viewPos, 1.0)).xyz;
     float scale = max(G.shadeA.y, 1e-3);
     vec2 grad = rippleGradient(world.xz * scale, G.simB.z * G.shadeA.z, footprint * scale);
     vec3 g = vec3(grad.x, 0.0, grad.y) * G.shadeA.x;
@@ -134,7 +133,7 @@ vec3 sunSpecular(vec3 n, vec3 V, float footprint) {
     float F = 0.02 + 0.98 * pow(1.0 - max(dot(V, H), 0.0), 5.0);
     float k = rough * rough * 0.5;
     float Vis = 0.5 / max(NoL * (NoV * (1.0 - k) + k) + NoV * (NoL * (1.0 - k) + k), 1e-5);
-    return vec3(1.0, 0.96, 0.88) * min(D * Vis * F * NoL * G.shadeB.x, G.compat.z) * G.sunDir.w;
+    return vec3(1.0, 0.96, 0.88) * min(D * Vis * F * NoL * G.shadeB.x, SPECULAR_CAP) * G.sunDir.w;
 }
 
 vec3 shadeAboveLava(vec2 uv, vec3 n, float fd, float ambient) {
@@ -144,12 +143,12 @@ vec3 shadeAboveLava(vec2 uv, vec3 n, float fd, float ambient) {
     float footprint = pixelFootprint(fd);
     vec3 wrinkled = rippleNormal(n, P, footprint);
     n = normalize(mix(n, wrinkled, smoothstep(0.0, 0.2, dot(wrinkled, V))));
-    float path = max(texture(thicknessTex, uv).r, 0.0) * G.waterA.y;
+    float path = max(thicknessAt(uv), 0.0) * G.waterA.y;
     vec3 glow = G.scatter.rgb * (1.4 + ambient);
     vec3 core = glow * (1.0 - exp(-G.scatter.w * path * 0.45));
     float fresnel = pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 2.0);
     vec3 rim = glow * fresnel * 0.85;
-    return core + rim + sunSpecular(n, V, footprint) * vec3(1.0, 0.65, 0.25) * sunLit(P);
+    return core + rim + sunSpecular(n, V, footprint) * vec3(1.0, 0.65, 0.25);
 }
 
 vec3 shadeAboveWater(vec2 uv, vec3 n, float fd, float sceneDist, float ambient, vec2 bs) {
@@ -157,7 +156,7 @@ vec3 shadeAboveWater(vec2 uv, vec3 n, float fd, float sceneDist, float ambient, 
     vec3 V = normalize(-P);
     n = dot(n, V) < 0.0 ? -n : n;
     float footprint = pixelFootprint(fd);
-    float thickness = max(texture(thicknessTex, uv).r, 0.0);
+    float thickness = max(thicknessAt(uv), 0.0);
     vec3 upV = normalize(mat3(G.view) * vec3(0.0, 1.0, 0.0));
     float vertical = thickness * abs(dot(V, upV));
     float film = 1.0 - smoothstep(0.02, max(G.shadeB.z, 0.03), vertical);
@@ -168,20 +167,18 @@ vec3 shadeAboveWater(vec2 uv, vec3 n, float fd, float sceneDist, float ambient, 
     vec2 offset = n.xy * G.waterA.z * clamp(thickness, 0.0, 2.0) / max(fd, 1.0);
     vec2 ruv = clamp(uv + offset, vec2(0.0), vec2(1.0));
     float refrDist = linearDepth(texture(sceneDepth, ruv).r);
-    float path = max(texture(thicknessTex, ruv).r, 0.0);
+    float path = max(thicknessAt(ruv), 0.0);
     if (refrDist < fd) {
         ruv = uv;
         path = thickness;
     }
     path *= G.waterA.y;
-    vec3 under = texture(sceneColor, ruv).rgb;
+    vec3 under = behindAt(ruv);
     float wet = G.shadeB.y * smoothstep(0.0, 0.03, path);
     under = pow(max(under, vec3(0.0)), vec3(1.0 + wet)) * (1.0 - 0.15 * wet);
     vec3 transmitted = under * exp(-G.absorb.rgb * path);
-    vec3 nWorld = normalize(mat3(G.invView) * n);
-    vec3 lightColor = G.compat.y <= 1.0 ? vanillaLight(bs)
-        : vec3(ambient * bs.y * bs.y) + shaderBlockLight(mat3(G.invView) * P, nWorld, bs.x) * 0.5;
-    vec3 scattered = G.scatter.rgb * lightColor * (1.0 - exp(-G.scatter.w * path)) * G.compat.y;
+    vec3 lightColor = vanillaLight(bs);
+    vec3 scattered = G.scatter.rgb * lightColor * (1.0 - exp(-G.scatter.w * path));
     vec3 water = transmitted + scattered;
 
     vec3 Rv = reflect(-V, n);
@@ -189,9 +186,9 @@ vec3 shadeAboveWater(vec2 uv, vec3 n, float fd, float sceneDist, float ambient, 
     float hit;
     vec3 ssr = traceReflection(P + n * 0.05, Rv, hit);
     float skyVisible = smoothstep(0.0, 0.7, bs.y);
-    vec3 reflection = mix(reflectedSky(Rv, Rw) * mix(lightColor * 0.3, vec3(1.0), skyVisible), ssr, hit);
+    vec3 reflection = mix(skyColor(Rw) * mix(lightColor * 0.3, vec3(1.0), skyVisible), ssr, hit);
     float F = 0.02 + 0.98 * pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 5.0);
-    return mix(water, reflection, F) + sunSpecular(n, V, footprint) * sunLit(P) * smoothstep(0.5, 0.95, bs.y);
+    return mix(water, reflection, F) + sunSpecular(n, V, footprint) * smoothstep(0.5, 0.95, bs.y);
 }
 
 vec3 slimeRgb(int argb) {
@@ -221,19 +218,14 @@ vec3 shadeSlime(vec2 uv, vec3 n, float fd, vec2 bs) {
     vec3 V = normalize(-P);
     n = dot(n, V) < 0.0 ? -n : n;
     vec3 nWorld = normalize(mat3(G.invView) * n);
-    vec3 world = G.misc.yzw + (G.invView * vec4(P, 0.0)).xyz - nWorld * 0.01;
+    vec3 world = G.misc.yzw + (G.invView * vec4(P, 1.0)).xyz - nWorld * 0.01;
     vec3 albedo = slimeAlbedo(world, nWorld, pixelFootprint(fd));
-    vec3 lit;
-    if (G.compat.y <= 1.0) {
-        vec3 n2 = nWorld * nWorld;
-        float face = n2.x * 0.6 + n2.z * 0.8 + n2.y * (nWorld.y > 0.0 ? 1.0 : 0.5);
-        lit = min(albedo * face * vanillaLight(bs) * G.matD.y, vec3(1.0));
-    } else {
-        lit = albedo * G.matD.y * G.compat.y * 0.5 * shaderSurfaceLight(mat3(G.invView) * P, P, nWorld, bs);
-    }
-    float path = max(texture(thicknessTex, uv).r, 0.0) * G.waterA.y;
+    vec3 n2 = nWorld * nWorld;
+    float face = n2.x * 0.6 + n2.z * 0.8 + n2.y * (nWorld.y > 0.0 ? 1.0 : 0.5);
+    vec3 lit = min(albedo * face * vanillaLight(bs) * G.matD.y, vec3(1.0));
+    float path = max(thicknessAt(uv), 0.0) * G.waterA.y;
     float opacity = mix(G.matD.w, 1.0, 1.0 - exp(-path * 3.0));
-    vec3 behind = texture(sceneColor, uv).rgb * mix(vec3(1.0), albedo * 1.3, 0.75);
+    vec3 behind = behindAt(uv) * mix(vec3(1.0), albedo * 1.3, 0.75);
     return mix(behind, lit, opacity);
 }
 
@@ -269,18 +261,21 @@ vec3 shadeSurfaceFromBelow(vec2 uv, vec3 n, float fd, vec3 deep) {
     float cosI = clamp(dot(n, V), 0.0, 1.0);
     const float ETA = 1.333;
     float sinT2 = ETA * ETA * (1.0 - cosI * cosI);
-    if (sinT2 >= 1.0) {
-        return deep * 1.4;
+    float F;
+    if (G.compat.y > 0.5) {
+        if (sinT2 >= 1.0) {
+            return deep * 1.4;
+        }
+        F = 0.02 + 0.98 * pow(1.0 - sqrt(1.0 - sinT2), 5.0);
+    } else {
+        F = (0.02 + 0.98 * pow(1.0 - cosI, 5.0)) * 0.25;
     }
-    float cosT = sqrt(1.0 - sinT2);
-    float F = 0.02 + 0.98 * pow(1.0 - cosT, 5.0);
     vec2 ruv = clamp(uv - n.xy * G.waterA.z * 0.6, vec2(0.0), vec2(1.0));
-    vec3 above = texture(sceneColor, ruv).rgb;
+    vec3 above = behindAt(ruv);
     return mix(above, deep * 1.4, F);
 }
 
-void main() {
-    vec2 uv = gl_FragCoord.xy * G.screen.zw;
+vec3 shadePixel(vec2 uv) {
     vec4 g = texture(gbuffer, uv);
     float fd = g.w;
     vec4 matSample = texture(materialTex, uv);
@@ -289,7 +284,7 @@ void main() {
     bool lavaPass = abs(pc.filterMat - 2.0) < 0.5;
     bool slimePass = pc.filterMat > 2.5;
     bool surfaceOnly = lavaPass || slimePass;
-    vec4 foam = slimePass ? vec4(0.0) : texture(foamTex, uv);
+    vec4 foam = slimePass || !readable(uv) ? vec4(0.0) : texture(foamTex, uv);
     float sceneDev = texture(sceneDepth, uv).r;
     float sceneDist = linearDepth(sceneDev);
     bool hasFluid = fd > 0.0 && fd < sceneDist;
@@ -303,7 +298,7 @@ void main() {
         discard;
     }
     if (slimePass) {
-        vec3 slime = texture(sceneColor, uv).rgb;
+        vec3 slime = behindAt(uv);
         float slimeDepth = sceneDev;
         if (hasFluid && matTagged) {
             slime = shadeSlime(uv, g.xyz, fd, surfaceLight);
@@ -314,9 +309,8 @@ void main() {
             vec3 inside = slimeRgb(slimeTex[2]) * 0.55 * clamp(G.skyColor.w / 0.85, 0.2, 1.0) * G.matD.y;
             slime = mix(slime, inside, G.matD.z);
         }
-        outColor = vec4(slime, 1.0);
-        gl_FragDepth = slimeDepth;
-        return;
+        gDepth = slimeDepth;
+        return slime;
     }
     bool vanillaLavaFog = lavaPass && G.killInfo.w > 0.0;
     if (vanillaLavaFog) {
@@ -326,20 +320,19 @@ void main() {
         vec3 lavaColor = underwater ? G.scatter.rgb * (1.2 + G.skyColor.w) * 1.35 : shadeAboveLava(uv, g.xyz, fd, G.skyColor.w);
         float dist = length(viewPosAt(uv, fd));
         float f = clamp((dist - G.killInfo.z) / max(G.killInfo.w - G.killInfo.z, 1e-3), 0.0, 1.0);
-        outColor = vec4(mix(lavaColor, G.fogColor.rgb, f), 1.0);
         vec4 clip = G.proj * vec4(viewPosAt(uv, fd), 1.0);
-        gl_FragDepth = clip.z / clip.w;
-        return;
+        gDepth = clip.z / clip.w;
+        return mix(lavaColor, G.fogColor.rgb, f);
     }
     if (!hasFluid && foam.a < 1e-3 && !underwater) {
         discard;
     }
     float ambient = G.skyColor.w;
-    vec3 color = texture(sceneColor, uv).rgb;
+    vec3 color = behindAt(uv);
     float outDepth = sceneDev;
 
     if (underwater) {
-        vec3 deep = lavaPass ? G.scatter.rgb * (1.2 + ambient) : G.scatter.rgb * ambient * G.compat.y;
+        vec3 deep = lavaPass ? G.scatter.rgb * (1.2 + ambient) : G.scatter.rgb * ambient;
         float visible = min(sceneDist, 160.0);
         if (hasFluid) {
             color = lavaPass ? deep * 1.35 : shadeSurfaceFromBelow(uv, g.xyz, fd, deep);
@@ -359,12 +352,27 @@ void main() {
         vec3 foamColor = foam.rgb / foam.a;
         float coverage = min(1.0 - exp(-foam.a * G.foamA.y), 0.9);
         if (hasFluid && !underwater) {
-            vec3 world = G.misc.yzw + (G.invView * vec4(viewPosAt(uv, fd), 0.0)).xyz;
+            vec3 world = G.misc.yzw + (G.invView * vec4(viewPosAt(uv, fd), 1.0)).xyz;
             coverage *= foamLace(world.xz, coverage, pixelFootprint(fd));
         }
-        color = mix(color, foamColor * mix(0.25, 1.0, ambient) * G.compat.y, coverage);
+        color = mix(color, foamColor * mix(0.25, 1.0, ambient), coverage);
     }
 
-    outColor = vec4(color, 1.0);
-    gl_FragDepth = outDepth;
+    gDepth = outDepth;
+    return color;
+}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy * G.screen.zw;
+    if (G.compat.x < 0.5) {
+        outColor = vec4(shadePixel(uv), 1.0);
+        gl_FragDepth = gDepth;
+        return;
+    }
+    gBackground = 0.0;
+    vec3 over = shadePixel(uv);
+    gBackground = 1.0;
+    vec3 through = clamp(shadePixel(uv) - over, vec3(0.0), vec3(1.0));
+    outColor = vec4(max(over, vec3(0.0)), 1.0 - dot(through, vec3(1.0 / 3.0)));
+    gl_FragDepth = gDepth;
 }

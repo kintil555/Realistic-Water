@@ -86,6 +86,7 @@ public final class WaterSettings {
 	public static float scatterB = 0.11F;
 	public static float scatterDensity = 0.5F;
 	public static float underwaterFog = 0.1F;
+	public static boolean underwaterMirror = false;
 	public static float surfaceSmoothing = 0.6F;
 	public static float detailStrength = 0.4F;
 	public static float detailScale = 6.0F;
@@ -211,13 +212,7 @@ public final class WaterSettings {
 	public static float tntUpwardBias = 0.35F;
 	public static float tntScatter = 0.25F;
 
-	public static float shaderLightScale = 2.5F;
-	public static float shaderSpecularCap = 16.0F;
-	public static float shaderShadowBias = 0.0004F;
-	public static boolean shaderSkyFromScreen = true;
-	public static boolean shadowStagger = true;
-	public static float sandShaderSun = 3.4F;
-	public static float sandShaderSky = 0.9F;
+	public static boolean vitrailInsidePack = true;
 
 	public static String ffmpeg = "";
 	public static boolean renderFreezeWorld = true;
