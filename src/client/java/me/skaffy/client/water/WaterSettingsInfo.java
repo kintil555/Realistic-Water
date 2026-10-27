@@ -132,6 +132,20 @@ public final class WaterSettingsInfo {
 		toggle("bucketMakesSource", "Bucket makes spring", Cost.NONE, "Currently unused.",
 			"Left over from an older version and currently has no effect.");
 
+		category("Performance");
+		toggle("adaptiveQuality", "Adaptive quality", Cost.NONE, "Trades some accuracy for frame rate only while frames run slow.",
+			"Watches the frame time and, while it is over the target, uses fewer substeps and solver iterations. Restores them when there is headroom.");
+		num("targetFrameMs", "Target frame time", Cost.NONE, "Lower reacts earlier; 16.7 is 60 FPS, 20 is 50 FPS.", 5, 66, 0.5,
+			"Frame time in milliseconds that adaptive quality tries to stay under.");
+		num("adaptiveMinQuality", "Lowest quality", Cost.NONE, "Lower lets adaptive quality cut deeper.", 0.1, 1, 0.05,
+			"Smallest fraction of substeps and solver iterations adaptive quality may fall back to.");
+		num("simDistance", "Simulation distance", Cost.HIGH, "Bodies of fluid farther away than this are not simulated or drawn. 0 uses the render distance.", 0, 512, 8,
+			"Blocks from the camera beyond which fluid bodies stop being simulated.");
+		num("farMeshDistance", "Far mesh distance", Cost.MEDIUM, "Beyond this the water surface is rebuilt less often. 0 turns this off.", 0, 512, 8,
+			"Blocks from the camera beyond which a body's surface mesh is rebuilt only every few frames.");
+		integer("farMeshInterval", "Far mesh interval", Cost.MEDIUM, "Higher rebuilds distant surfaces less often.", 1, 8,
+			"A distant body rebuilds its surface once every this many frames.");
+
 		category("Pressure solver");
 		integer("cgIterations", "Solver iterations", Cost.HIGH, "Each iteration is a few more GPU dispatches every substep.", 1, 30,
 			"Rounds of the pressure solver per substep. More keeps water incompressible (no squishing or sinking) at a higher cost.");

@@ -1087,6 +1087,9 @@ public final class WaterWorld {
 		LevelRenderState levelState = mc.gameRenderer.gameRenderState().levelRenderState;
 		Vec3 cam = levelState.cameraRenderState.pos;
 		double reach = (mc.options.renderDistance().get() + 2) * 16.0;
+		if (WaterSettings.simDistance > 0.0F) {
+			reach = Math.min(reach, WaterSettings.simDistance);
+		}
 
 		List<WaterRegion> active = new ArrayList<>();
 		List<WaterRegion> merged = new ArrayList<>();
@@ -1112,9 +1115,12 @@ public final class WaterWorld {
 			r.idleFrames = 0;
 			double cx = (box[0] + box[3]) * 0.5 / r.res;
 			double cz = (box[2] + box[5]) * 0.5 / r.res;
-			if (Math.abs(cx - cam.x) > reach || Math.abs(cz - cam.z) > reach) {
+			double dx = Math.max(0.0, Math.abs(cx - cam.x) - (box[3] - box[0]) * 0.5 / r.res);
+			double dz = Math.max(0.0, Math.abs(cz - cam.z) - (box[5] - box[2]) * 0.5 / r.res);
+			if (dx > reach || dz > reach) {
 				continue;
 			}
+			r.camDist = Math.sqrt(dx * dx + dz * dz);
 			active.add(r);
 			if (r.material.isGranular()) {
 				fastestSand = Math.max(fastestSand, r.lastMaxSpeed / r.res);
@@ -1137,8 +1143,15 @@ public final class WaterWorld {
 				}
 			}
 		}
-		while (active.size() > MAX_REGIONS) {
-			active.removeLast();
+		if (active.size() > MAX_REGIONS) {
+			active.sort(java.util.Comparator.comparingDouble(reg -> reg.camDist));
+			while (active.size() > MAX_REGIONS) {
+				active.removeLast();
+			}
+		}
+		for (WaterRegion r : active) {
+			boolean far = WaterSettings.farMeshDistance > 0.0F && r.camDist > WaterSettings.farMeshDistance;
+			r.meshInterval = far ? Math.max(1, WaterSettings.farMeshInterval) : 1;
 		}
 
 		int steps = 0;
@@ -1147,7 +1160,12 @@ public final class WaterWorld {
 			float speed = fastest + WaterSettings.gravity * 0.15F;
 			int res = Math.max(1, WaterSettings.resolution);
 			int wanted = Math.max((int) Math.ceil(frameDt * speed * res / WaterSettings.cfl), (int) Math.ceil(frameDt / WaterSettings.maxDt));
-			steps = Mth.clamp(wanted, 1, clipDt != null ? WaterSettings.renderMaxStepsPerFrame : WaterSettings.maxStepsPerFrame);
+			if (clipDt == null) {
+				WaterSettings.adapt(this.smoothedFrameMs);
+			} else {
+				WaterSettings.quality = 1.0F;
+			}
+			steps = Mth.clamp(wanted, 1, clipDt != null ? WaterSettings.renderMaxStepsPerFrame : WaterSettings.effectiveMaxSteps());
 			stepDt = Math.min(frameDt / steps, WaterSettings.maxDt);
 		}
 		int sandSteps = 0;
