@@ -129,8 +129,9 @@ public final class WaterSettingsInfo {
 			"A body only goes to sleep when it has at most this many foam and spray particles left.");
 		num("sourceFill", "Spring fill", Cost.LOW, "Fuller springs add particles faster.", 0, 1, 0.01,
 			"How full a spring block (infinite water or lava) keeps itself, from empty to a full block.");
-		toggle("bucketMakesSource", "Bucket makes spring", Cost.NONE, "Currently unused.",
-			"Left over from an older version and currently has no effect.");
+		toggle("bucketMakesSource", "Bucket makes spring", Cost.LOW, "Springs keep emitting forever, which keeps their body of fluid simulated.",
+			"Off: one bucket places one finite block of water or lava. On: the bucket places an infinite spring that keeps flowing. "
+				+ "Applies to buckets used after changing it; existing springs stay as they are.");
 
 		category("Performance");
 		toggle("adaptiveQuality", "Adaptive quality", Cost.NONE, "Trades some accuracy for frame rate only while frames run slow.",

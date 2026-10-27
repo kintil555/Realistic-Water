@@ -363,6 +363,9 @@ public final class WaterSettings {
 		if ("lavaIgniteFlammables".equals(name) && t == boolean.class) {
 			ModSettings.lavaIgniteFlammables = (boolean) f.get(null);
 		}
+		if ("bucketMakesSource".equals(name) && t == boolean.class) {
+			ModSettings.bucketMakesSource = (boolean) f.get(null);
+		}
 		if ("lavaWaterMixing".equals(name) && t == boolean.class) {
 			ModSettings.lavaWaterMixing = (boolean) f.get(null);
 		}
