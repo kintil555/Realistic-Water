@@ -760,7 +760,7 @@ public final class WaterRegion implements AutoCloseable {
 			this.light.flush(0, count * 4L);
 			return;
 		}
-		int n = Math.min(count, LIGHT_BLOCKS_PER_FRAME);
+		int n = Math.min(count, Math.max(256, LIGHT_BLOCKS_PER_FRAME / Math.max(1, this.meshInterval)));
 		int start = this.lightCursor;
 		for (int k = 0; k < n; k++) {
 			int i = (start + k) % count;

@@ -1451,7 +1451,8 @@ public final class WaterWorld {
 		putFloats(b, o + 80, flip, PARTICLES_PER_CELL, slime ? WaterSettings.slimeVolumeCorrection : WaterSettings.volumeCorrection, 0.0F);
 		float maxSpeed = (lava ? WaterSettings.lavaMaxSpeed : slime ? WaterSettings.slimeMaxSpeed : leaves ? WaterSettings.leafMaxSpeed : WaterSettings.maxSpeed) * res;
 		putFloats(b, o + 96, maxSpeed, h, this.simTime, 0.0F);
-		putFloats(b, o + 112, WaterSettings.wwTrappedAirRate, WaterSettings.wwWaveCrestRate, WaterSettings.wwEnergyMin, WaterSettings.wwEnergyMax);
+		float wwScale = WaterSettings.adaptiveQuality ? WaterSettings.quality : 1.0F;
+		putFloats(b, o + 112, WaterSettings.wwTrappedAirRate * wwScale, WaterSettings.wwWaveCrestRate * wwScale, WaterSettings.wwEnergyMin, WaterSettings.wwEnergyMax);
 		putFloats(b, o + 128, WaterSettings.wwTrappedAirMin, WaterSettings.wwTrappedAirMax, WaterSettings.wwWaveCrestMin, WaterSettings.wwWaveCrestMax);
 		putFloats(b, o + 144, WaterSettings.wwFoamLifeMin, WaterSettings.wwFoamLifeMax, WaterSettings.wwBubbleBuoyancy, WaterSettings.wwBubbleDrag);
 		putFloats(b, o + 160, WaterSettings.wwSprayDrag, WaterSettings.wwSprayThreshold, WaterSettings.wwBubbleThreshold, WaterSettings.wwMaxPerParticle);
